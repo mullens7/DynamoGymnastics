@@ -39,3 +39,10 @@ test('protected export inspection returns headings/counts without contact values
  await handler({method:'POST',headers:{authorization:'Bearer '+key},body:{mode:'inspect'}},res);
  assert.equal(res.code,200);assert.equal(options.includeWorkbook,true);assert.equal(res.body.rowCount,1);assert.deepEqual(res.body.columns,headers);assert.equal('workbook' in res.body,false);assert.equal(JSON.stringify(res.body).includes('private@example.invalid'),false);
 });
+test('new secret API keys use apikey only, legacy service keys retain JWT authorization',()=>{
+ const {database}=require('../server/database.cjs');
+ const url='https://fixture.supabase.co';
+ assert.deepEqual(database({SUPABASE_URL:url,SUPABASE_SECRET_KEY:'sb_secret_fixture'}).headers,{apikey:'sb_secret_fixture'});
+ assert.deepEqual(database({SUPABASE_URL:url,SUPABASE_SERVICE_ROLE_KEY:'fixture-jwt'}).headers,{apikey:'fixture-jwt',Authorization:'Bearer fixture-jwt'});
+ assert.throws(()=>database({SUPABASE_URL:'https://other.example',SUPABASE_SECRET_KEY:'sb_secret_fixture'}),{code:'DATABASE_NOT_CONFIGURED'});
+});
