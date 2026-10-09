@@ -9,6 +9,9 @@
     },
     "api/scheduled-sync.js": {
       "maxDuration": 150
+    },
+    "api/email-status.js": {
+      "maxDuration": 60
     }
   }
 }
