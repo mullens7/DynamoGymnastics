@@ -25,7 +25,7 @@ test('unsafe snapshots and missing membership contracts fail before import',asyn
  const wb=await fixture([['g1','owner@example.invalid','Parent','Child','One','Gymini','','','Active']]);
  assert.throws(()=>prepareRoster(wb,{...mapping,id:'Missing column'}),{code:'ROSTER_MAPPING_REQUIRED'});
  const noStatus={...mapping};delete noStatus.status;assert.throws(()=>prepareRoster(wb,noStatus),{code:'ROSTER_MAPPING_REQUIRED'});
- const duplicate=await fixture([['g1','a@example.invalid','','Child','One','Gymini','','','Active'],['g1','a@example.invalid','','Child','One','Gymini','','','Active']]);assert.throws(()=>prepareRoster(duplicate,mapping),{code:'INVALID_ROSTER'});
+ const duplicate=await fixture([['g1','a@example.invalid','','Child','One','Gymini','','','Active'],['g1','a@example.invalid','','Child','One','Gymini','','','Active']]);assert.throws(()=>prepareRoster(duplicate,mapping),{code:'IDENTITY_REVIEW_REQUIRED'});
  const unknown=await fixture([['g2','a@example.invalid','','Child','Two','Unmapped Class','','','Active']]);assert.throws(()=>prepareRoster(unknown,mapping),{code:'ROSTER_REVIEW_REQUIRED'});
 });
 test('unconfigured durable storage fails before Browserless or email calls',async()=>{
@@ -45,4 +45,13 @@ test('new secret API keys use apikey only, legacy service keys retain JWT author
  assert.deepEqual(database({SUPABASE_URL:url,SUPABASE_SECRET_KEY:'sb_secret_fixture'}).headers,{apikey:'sb_secret_fixture'});
  assert.deepEqual(database({SUPABASE_URL:url,SUPABASE_SERVICE_ROLE_KEY:'fixture-jwt'}).headers,{apikey:'fixture-jwt',Authorization:'Bearer fixture-jwt'});
  assert.throws(()=>database({SUPABASE_URL:'https://other.example',SUPABASE_SECRET_KEY:'sb_secret_fixture'}),{code:'DATABASE_NOT_CONFIGURED'});
+});
+
+test('the seven-column Thrive4 export has repeatable profile IDs independent of class and BG number',async()=>{
+ const h=['last name','first name','time and class','account owner','owner email','*bg membership number','date of birth'];
+ const mapping={lastName:h[0],firstName:h[1],timeClass:h[2],ownerName:h[3],email:h[4],bgNumber:h[5],dateOfBirth:h[6],identityPolicy:'email_name_dob',membershipPolicy:'assigned_classes'};
+ async function roster(group,bg){const wb=new Excel.Workbook(),sheet=wb.addWorksheet('Contacts');sheet.addRow(h);sheet.addRows([['One','Child',group,'Parent',' OWNER@example.invalid ',bg,'02/01/2016'],['Two','Child','Gymini','Parent','owner@example.invalid','','03/02/2018'],['Coach','Junior','Junior Coach','Staff','staff@example.invalid','','']]);return prepareRoster(await readWorkbook(Buffer.from(await wb.xlsx.writeBuffer())),mapping);}
+ const first=await roster('Girls Advanced Recreational','BG1'),later=await roster('WA Mini Club A 9 Hours','BG2');
+ assert.equal(first[0].gymnasts[0].sourceId,later[0].gymnasts[0].sourceId);assert.equal(first[0].gymnasts[0].dateOfBirth,'2016-01-02');assert.equal(first[0].gymnasts.length,2);assert.equal(first[1].staff,true);assert.equal(first[1].gymnasts.length,0);
+ const {profileIdentity,canonicalDate}=require('../server/member-roster.cjs');assert.throws(()=>profileIdentity('a@example.invalid','Child','One',null),{code:'IDENTITY_REVIEW_REQUIRED'});assert.throws(()=>canonicalDate('31/02/2016'),{code:'IDENTITY_REVIEW_REQUIRED'});
 });

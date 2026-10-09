@@ -1,3 +1,4 @@
+const {createHash}=require('node:crypto');
 const {classify}=require('../public/manage/membership.js');
 class RosterError extends Error {constructor(code){super(code);this.code=code;this.stage='validation';}}
 const normal=value=>String(value??'').trim().toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -25,17 +26,28 @@ async function readWorkbook(buffer){
 }
 function columnMap(columns,mapping){
  const byName=new Map();for(const c of columns){const key=normal(c.label);if(byName.has(key))throw new RosterError('INVALID_ROSTER');byName.set(key,c.index);}
- const required=['id','email','firstName','lastName','timeClass'];const mapped={};
- for(const [field,label] of Object.entries(mapping)){if(field==='activeValues'||field==='membershipPolicy')continue;const index=byName.get(normal(label));if(!index)throw new RosterError('ROSTER_MAPPING_REQUIRED');mapped[field]=index;}
- if(required.some(k=>!mapped[k])||(!mapped.status&&mapping.membershipPolicy!=='assigned_classes'))throw new RosterError('ROSTER_MAPPING_REQUIRED');
+ const required=['email','firstName','lastName','timeClass'];const mapped={};
+ for(const [field,label] of Object.entries(mapping)){if(field==='activeValues'||field==='membershipPolicy'||field==='identityPolicy')continue;const index=byName.get(normal(label));if(!index)throw new RosterError('ROSTER_MAPPING_REQUIRED');mapped[field]=index;}
+ if((!mapped.id&&(mapping.identityPolicy!=='email_name_dob'||!mapped.dateOfBirth))||required.some(k=>!mapped[k])||(!mapped.status&&mapping.membershipPolicy!=='assigned_classes'))throw new RosterError('ROSTER_MAPPING_REQUIRED');
  if(mapped.status&&(!Array.isArray(mapping.activeValues)||!mapping.activeValues.length))throw new RosterError('ROSTER_MAPPING_REQUIRED');return mapped;
+}
+function canonicalDate(value){
+ if(!value)return null;
+ let match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(value),iso=value;
+ if(!match){match=/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(value);if(!match)throw new RosterError('IDENTITY_REVIEW_REQUIRED');iso=match[3]+'-'+match[2].padStart(2,'0')+'-'+match[1].padStart(2,'0');}
+ const date=new Date(iso+'T00:00:00Z');if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==iso)throw new RosterError('IDENTITY_REVIEW_REQUIRED');return iso;
+}
+function profileIdentity(email,firstName,lastName,dateOfBirth){
+ if(!dateOfBirth)throw new RosterError('IDENTITY_REVIEW_REQUIRED');
+ const canonical=value=>value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
+ return 'derived:'+createHash('sha256').update(JSON.stringify([canonical(email),canonical(firstName),canonical(lastName),dateOfBirth])).digest('hex');
 }
 function prepareRoster(workbook,mapping){
  const columns=columnMap(workbook.columns,mapping),owners=new Map(),seen=new Set();
  for(const row of workbook.rows){
   const value=field=>columns[field]?text(row.getCell(columns[field])):'';
-  const email=value('email').toLowerCase(),id=value('id');
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!id||seen.has(id))throw new RosterError('INVALID_ROSTER');seen.add(id);
+  const email=value('email').toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new RosterError('INVALID_ROSTER');
   const timeClass=value('timeClass'),rule=classify(timeClass);
   // Unmapped class entries must be reviewed, never silently drop member benefits.
   if(rule.review.length)throw new RosterError('ROSTER_REVIEW_REQUIRED');
@@ -43,7 +55,10 @@ function prepareRoster(workbook,mapping){
   let owner=owners.get(email);if(!owner){owner={email,ownerName:value('ownerName'),member:false,staff:false,gymnasts:[]};owners.set(email,owner);}
   owner.staff ||= active&&rule.staff;
   if(rule.groups.length){const firstName=value('firstName'),lastName=value('lastName');if(!firstName||!lastName)throw new RosterError('INVALID_ROSTER');
-   owner.gymnasts.push({sourceId:id,firstName,lastName,dateOfBirth:value('dateOfBirth')||null,bgNumber:value('bgNumber'),groups:rule.groups,active});owner.member ||= active;
+   const dateOfBirth=canonicalDate(value('dateOfBirth'));
+   const id=columns.id?value('id'):profileIdentity(email,firstName,lastName,dateOfBirth);
+   if(!id||seen.has(id))throw new RosterError('IDENTITY_REVIEW_REQUIRED');seen.add(id);
+   owner.gymnasts.push({sourceId:id,firstName,lastName,dateOfBirth,bgNumber:value('bgNumber'),groups:rule.groups,active});owner.member ||= active;
   }
  }
  return [...owners.values()];
@@ -58,4 +73,4 @@ function reconcile(existing,roster,makeId){
  }
  return [...accounts.values()];
 }
-module.exports={RosterError,readWorkbook,prepareRoster,reconcile};
+module.exports={RosterError,readWorkbook,prepareRoster,reconcile,canonicalDate,profileIdentity};

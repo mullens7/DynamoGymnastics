@@ -74,6 +74,18 @@ begin
   for gymnast in select value from jsonb_array_elements(owner->'gymnasts') loop
    select account_id into existing_owner from public.dynamo_gymnasts where source_id=gymnast->>'sourceId';
    if found and existing_owner<>account_uuid then raise exception 'IDENTITY_REVIEW_REQUIRED'; end if;
+   if not found and gymnast->>'sourceId' like 'derived:%' then
+    -- A corrected name/DOB or changed owner must not silently create a new profile.
+    if exists(
+     select 1 from public.dynamo_gymnasts old
+     where old.source_id like 'derived:%'
+      and not exists(select 1 from jsonb_array_elements(p_rows) a cross join lateral jsonb_array_elements(a->'gymnasts') g where g->>'sourceId'=old.source_id)
+      and (
+       (old.account_id=account_uuid and (old.date_of_birth=gymnast->>'dateOfBirth' or (lower(btrim(old.first_name))=lower(btrim(gymnast->>'firstName')) and lower(btrim(old.last_name))=lower(btrim(gymnast->>'lastName')))))
+       or (old.date_of_birth=gymnast->>'dateOfBirth' and lower(btrim(old.first_name))=lower(btrim(gymnast->>'firstName')) and lower(btrim(old.last_name))=lower(btrim(gymnast->>'lastName')))
+      )
+    ) then raise exception 'IDENTITY_REVIEW_REQUIRED'; end if;
+   end if;
    insert into public.dynamo_gymnasts(account_id,source_id,first_name,last_name,date_of_birth,bg_number,groups,active)
    values(account_uuid,gymnast->>'sourceId',gymnast->>'firstName',gymnast->>'lastName',gymnast->>'dateOfBirth',coalesce(gymnast->>'bgNumber',''),array(select jsonb_array_elements_text(gymnast->'groups')),(gymnast->>'active')::boolean)
    on conflict(source_id) do update set first_name=excluded.first_name,last_name=excluded.last_name,date_of_birth=excluded.date_of_birth,bg_number=excluded.bg_number,groups=excluded.groups,active=excluded.active;
