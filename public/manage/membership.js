@@ -8,7 +8,7 @@
     let staff = false;
     for(const text of entries){
       staff ||= /coach|manager|director/i.test(text);
-      const development = /development/i.test(text)||/\bdev\b/i.test(text);
+      const development = /\bdevelopment\b/i.test(text);
       if(/gymini/i.test(text))result.add('gymini');
       if(/advanced/i.test(text))result.add('advanced');
       else if(/recreational/i.test(text))result.add('recreational');

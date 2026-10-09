@@ -27,7 +27,7 @@ test('unsafe snapshots and missing membership contracts fail before import',asyn
  const noStatus={...mapping};delete noStatus.status;assert.throws(()=>prepareRoster(wb,noStatus),{code:'ROSTER_MAPPING_REQUIRED'});
  const duplicate=await fixture([['g1','a@example.invalid','','Child','One','Gymini','','','Active'],['g1','a@example.invalid','','Child','One','Gymini','','','Active']]);assert.throws(()=>prepareRoster(duplicate,mapping),{code:'IDENTITY_REVIEW_REQUIRED'});
  const unknown=await fixture([['g2','a@example.invalid','','Child','Two','Unmapped Class','','','Active']]);const report={};const nonmembers=prepareRoster(unknown,mapping,report);assert.equal(nonmembers[0].member,false);assert.equal(nonmembers[0].gymnasts.length,0);assert.equal(report.unmappedRows,1);assert.deepEqual(report.unmappedClasses,[{label:'Unmapped Class',rows:1}]);
- const ambiguous=await fixture([['g3','a@example.invalid','','Child','Two','WA Dev Comp 9 Hours','','','Active']]);const development=prepareRoster(ambiguous,mapping);assert.equal(development[0].member,true);assert.deepEqual(development[0].gymnasts[0].groups,['womens_development']);
+ const ambiguous=await fixture([['g3','a@example.invalid','','Child','Two','WA Dev Comp 9 Hours','','','Active']]);const squad=prepareRoster(ambiguous,mapping);assert.equal(squad[0].member,true);assert.deepEqual(squad[0].gymnasts[0].groups,['womens_squad']);
 });
 test('unconfigured durable storage fails before Browserless or email calls',async()=>{
  const {syncMembers}=require('../server/member-sync.cjs');await assert.rejects(syncMembers({}),{code:'DATABASE_NOT_CONFIGURED'});

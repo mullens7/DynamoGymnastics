@@ -4,12 +4,12 @@ test('supplied classes and overrides',()=>{
  for(const [text,id] of examples)assert.deepEqual(m.classify(text).groups,[id]);
  for(const text of ['Junior Coach','Senior Coach','General Manager and Club Welfare Officer','Director'])assert.deepEqual(m.classify(text),{groups:[],staff:true,review:[]});
 });
-test('exact tokens, casing, separate classes, abbreviation review',()=>{
+test('exact tokens, casing, separate classes, Dev remains regular squad',()=>{
  assert.deepEqual(m.classify('Manager, Gymnasium, Water').groups,[]);
  assert.deepEqual(m.classify('wa development, MA Senior 12 Hours').groups,['womens_development','mens_squad']);
  assert.deepEqual(m.classify('Gymini; Boys Advanced Recreational; Recreational').groups,['gymini','advanced','recreational']);
- assert.deepEqual(m.classify('WA Dev Comp 9 Hours'),{groups:['womens_development'],staff:false,review:[]});
- assert.deepEqual(m.classify('MA Dev 5 Hours').groups,['mens_development']);
+ assert.deepEqual(m.classify('WA Dev Comp 9 Hours'),{groups:['womens_squad'],staff:false,review:[]});
+ assert.deepEqual(m.classify('MA Dev 5 Hours').groups,['mens_squad']);
  assert.deepEqual(m.classify('WA Devon 9 Hours').groups,['womens_squad']);
 });
 test('owner grouping, staff parent, staff only, inactive and missing IDs',()=>{
