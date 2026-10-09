@@ -22,6 +22,25 @@ function actionabilityReason(error){
  if(/element is not stable/i.test(message))return 'moving or rerendering';
  return 'not clickable within the time limit';
 }
+async function clickExportControl(control){
+ try{
+  await control.evaluate(element=>element.scrollIntoView({block:'center',inline:'center',behavior:'instant'}));
+  await control.scrollIntoViewIfNeeded({timeout:5000});
+  await control.click({timeout:5000});
+ }catch(error){
+  // Only recover a geometry failure on the already identified Export control.
+  // Disabled controls, overlays and verification failures are not bypassed.
+  const message=String(error?.message||'');
+  if(!/element is outside of the viewport/i.test(message)||/intercepts pointer events|element is not enabled|element is disabled/i.test(message)||!await control.isVisible()||!await control.isEnabled())throw error;
+  const activated=await control.evaluate(element=>{
+   const rect=element.getBoundingClientRect();
+   if(!(element instanceof HTMLElement)||rect.width<=0||rect.height<=0||element.matches(':disabled,[aria-disabled="true"]')||element.closest('[inert]'))return false;
+   element.click();return true;
+  });
+  if(!activated)throw error;
+  console.info('Thrive export click: viewport geometry fallback');
+ }
+}
 async function exportContacts(env,{chromium}={}){
  const config=configuration(env),started=Date.now();let browser,stage='connect',check='browser connection',deadline,page;
  // No traces, screenshots, response bodies, credentials or member files are logged or saved.
@@ -31,7 +50,7 @@ async function exportContacts(env,{chromium}={}){
   endpoint.searchParams.set('token',config.token);endpoint.searchParams.set('timeout','115000');
   browser=await chromium.connectOverCDP(endpoint.href,{timeout:15000});
   const context=browser.contexts()[0];if(!context)throw new SyncError('BROWSER_UNAVAILABLE',stage);
-  page=await context.newPage();await page.setViewportSize({width:1920,height:1080});page.setDefaultTimeout(20000);page.setDefaultNavigationTimeout(25000);
+  page=await context.newPage();await page.setViewportSize({width:2560,height:2160});page.setDefaultTimeout(20000);page.setDefaultNavigationTimeout(25000);
   stage='login';check='Thrive4 sign-in';console.info('Thrive export stage: login');await page.goto('https://club.thrive4.com/#/?sector=gymnastics',{waitUntil:'domcontentloaded'});
   await page.locator('#login_email').fill(config.email);await page.locator('#login_password').fill(config.password);
   await page.locator('#login_submit').click();
@@ -77,9 +96,7 @@ async function exportContacts(env,{chromium}={}){
    // Use the surrounding interactive control, rather than a nested text span.
    const interactive=exportText.locator('xpath=ancestor-or-self::*[self::button or self::a or @role="button"][1]');
    const exportControl=await interactive.count()===1?interactive:exportText;
-   await exportControl.evaluate(element=>element.scrollIntoView({block:'center',inline:'center',behavior:'instant'}));
-   await exportControl.scrollIntoViewIfNeeded();
-   await exportControl.click();
+   await clickExportControl(exportControl);
    const result=inspectDownload(await download);
    return {...result,elapsedMs:Date.now()-started,membershipUpdated:false};
   }finally{clearTimeout(downloadTimer);cdp.off('Browserless.fileDownloaded',listener);}
@@ -111,4 +128,4 @@ async function exportContacts(env,{chromium}={}){
   const failure=new SyncError('AUTOMATION_FAILED',stage);failure.check=check;failure.diagnostic=diagnostic;throw failure;
  }finally{clearTimeout(deadline);if(browser){let cleanupTimer;try{await Promise.race([browser.close().catch(()=>{}),new Promise(resolve=>{cleanupTimer=setTimeout(resolve,5000)})])}finally{clearTimeout(cleanupTimer)}}}
 }
-module.exports={SyncError,configuration,inspectDownload,exportContacts,actionabilityReason};
+module.exports={SyncError,configuration,inspectDownload,exportContacts,actionabilityReason,clickExportControl};

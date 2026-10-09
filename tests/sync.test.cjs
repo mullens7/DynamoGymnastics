@@ -25,7 +25,7 @@ test('worker follows verified navigation and always closes the remote browser',a
  const cdp=new EventEmitter();cdp.send=async()=>{};const actions=[];let closed=0,selected=true;
  const buffer=Buffer.alloc(200);Buffer.from([0x50,0x4b,0x03,0x04]).copy(buffer);
  const node=name=>({fill:async()=>actions.push(name),click:async()=>{actions.push(name);if(name==='Dynamo School Of Gymnastics')selected=true;if(name==='Export')cdp.emit('Browserless.fileDownloaded',{filename:'contacts.xlsx',data:buffer.toString('base64')})},waitFor:async()=>{if(name==='Contact management')assert.equal(selected,true,'Club menu must be available after selecting Dynamo')},or(){return {...this,waitFor:async()=>{}}},isVisible:async()=>name==='Contact management'?selected:true,locator(){return node('Export')},count:async()=>1,evaluate:async()=>actions.push('center Export'),scrollIntoViewIfNeeded:async()=>actions.push('scroll Export'),getByText(text){return node(text)},first(){return this}});
- const destinations=[];const page={setViewportSize:async size=>assert.deepEqual(size,{width:1920,height:1080}),setDefaultTimeout(){},setDefaultNavigationTimeout(){},goto:async url=>destinations.push(url),url:()=> 'https://club.thrive4.com/#/app/business/dashboard',waitForURL:async()=>{},locator:node,getByText:node,getByRole:(role,{name})=>{assert.notEqual(role,'columnheader','Fresh sessions must not require custom visible columns');return node(name)}};
+ const destinations=[];const page={setViewportSize:async size=>assert.deepEqual(size,{width:2560,height:2160}),setDefaultTimeout(){},setDefaultNavigationTimeout(){},goto:async url=>destinations.push(url),url:()=> 'https://club.thrive4.com/#/app/business/dashboard',waitForURL:async()=>{},locator:node,getByText:node,getByRole:(role,{name})=>{assert.notEqual(role,'columnheader','Fresh sessions must not require custom visible columns');return node(name)}};
  const browser={contexts:()=>[{newPage:async()=>page,newCDPSession:async()=>cdp}],close:async()=>{closed++}};
  const env={BROWSERLESS_TOKEN:'fixture-token',THRIVE_EMAIL:'fixture@example.invalid',THRIVE_PASSWORD:'fixture-password'};
  const result=await exportContacts(env,{chromium:{connectOverCDP:async()=>browser}});assert.equal(result.membershipUpdated,false);assert.equal(result.bytes,200);assert.equal(closed,1);assert.deepEqual(actions,['#login_email','#login_password','#login_submit','Contact management','Contacts','center Export','scroll Export','Export']);assert.deepEqual(destinations,['https://club.thrive4.com/#/?sector=gymnastics']);
@@ -38,4 +38,16 @@ test('click failure classification exposes no raw error or contact text',()=>{
  assert.equal(actionabilityReason(new Error('Private contact DOM intercepts pointer events')), 'covered by another element');
  assert.equal(actionabilityReason(new Error('element is not enabled')), 'disabled');
  assert.equal(actionabilityReason(new Error('token=secret')), 'not clickable within the time limit');
+});
+
+test('Export geometry fallback only activates a visible enabled control',async()=>{
+ const {clickExportControl}=require('../server/thrive-export.cjs');
+ let evaluations=0,activated=0;
+ const outside=new Error('element is outside of the viewport');
+ const control={evaluate:async()=>{evaluations++;if(evaluations>1){activated++;return true}},scrollIntoViewIfNeeded:async()=>{},click:async()=>{throw outside},isVisible:async()=>true,isEnabled:async()=>true};
+ await clickExportControl(control);assert.equal(activated,1);
+ activated=0;evaluations=0;control.isEnabled=async()=>false;
+ await assert.rejects(clickExportControl(control),outside);assert.equal(activated,0);
+ evaluations=0;control.isEnabled=async()=>true;control.click=async()=>{throw new Error('overlay intercepts pointer events')};
+ await assert.rejects(clickExportControl(control),/overlay/);assert.equal(activated,0);
 });
