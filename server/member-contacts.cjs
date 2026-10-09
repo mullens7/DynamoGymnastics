@@ -18,6 +18,12 @@ module.exports=async function(req,res){
    if(!response.ok)throw new Error('Database unavailable');const rows=await response.json();
    accounts.push(...rows);if(rows.length<500)break;offset+=500;if(offset>20000)throw new Error('Contacts limit');
   }
-  return res.status(200).json({accounts});
+  const syncUrl=new URL(config.url+'/rest/v1/dynamo_sync_jobs');
+  syncUrl.searchParams.set('select','finished_at');syncUrl.searchParams.set('status','eq.complete');syncUrl.searchParams.set('order','finished_at.desc');syncUrl.searchParams.set('limit','1');
+  const syncResponse=await fetch(syncUrl,{headers:config.headers,redirect:'error',signal:AbortSignal.timeout(15000)});
+  if(!syncResponse.ok)throw new Error('Sync status unavailable');const syncs=await syncResponse.json();
+  let lastSyncedAt=syncs[0]?.finished_at||null;
+  if(!lastSyncedAt){const rosterUrl=new URL(config.url+'/rest/v1/dynamo_roster_runs?select=completed_at&order=completed_at.desc&limit=1');const rosterResponse=await fetch(rosterUrl,{headers:config.headers,redirect:'error',signal:AbortSignal.timeout(15000)});if(!rosterResponse.ok)throw new Error('Sync status unavailable');const runs=await rosterResponse.json();lastSyncedAt=runs[0]?.completed_at||null;}
+  return res.status(200).json({accounts,lastSyncedAt});
  }catch{return res.status(502).json({error:'CONTACTS_UNAVAILABLE',message:'Contacts could not be loaded.'});}
 };
