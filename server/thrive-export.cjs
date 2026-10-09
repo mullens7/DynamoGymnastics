@@ -24,23 +24,23 @@ async function exportContacts(env,{chromium}={}){
   browser=await chromium.connectOverCDP(endpoint.href,{timeout:15000});
   const context=browser.contexts()[0];if(!context)throw new SyncError('BROWSER_UNAVAILABLE',stage);
   const page=await context.newPage();page.setDefaultTimeout(20000);page.setDefaultNavigationTimeout(25000);
-  stage='login';await page.goto('https://club.thrive4.com/#/?sector=gymnastics',{waitUntil:'domcontentloaded'});
+  stage='login';console.info('Thrive export stage: login');await page.goto('https://club.thrive4.com/#/?sector=gymnastics',{waitUntil:'domcontentloaded'});
   await page.locator('#login_email').fill(config.email);await page.locator('#login_password').fill(config.password);
   await page.locator('#login_submit').click();
   await page.waitForURL(url=>url.hash.startsWith('#/app/business/'),{timeout:25000});
-  stage='organisation';
+  stage='organisation';console.info('Thrive export stage: organisation');
   if(page.url().includes('choose-organisation')){
    await page.getByText('Dynamo School Of Gymnastics',{exact:true}).click();
    await page.waitForURL(url=>!url.hash.includes('choose-organisation'),{timeout:20000});
   }
   // Verify the organisation before exporting. Do not accidentally export Gymtots.
   await page.getByText('Dynamo School Of Gymnastics',{exact:true}).first().waitFor({state:'visible'});
-  stage='contacts';await page.locator('#nav-contactManagement').click();await page.locator('#nav-contacts').click();
+  stage='contacts';console.info('Thrive export stage: contacts');await page.locator('#nav-contactManagement').click();await page.locator('#nav-contacts').click();
   await page.waitForURL(url=>url.hash==='#/app/business/crm');
   for(const heading of ['Time and class','Account owner','Owner email','Date of birth']){
    await page.getByRole('columnheader',{name:heading,exact:true}).waitFor({state:'visible'});
   }
-  stage='download';const cdp=await context.newCDPSession(page);
+  stage='download';console.info('Thrive export stage: download');const cdp=await context.newCDPSession(page);
   await cdp.send('Browserless.setDownloadEnabled',{enabled:true});
   let downloadTimer,listener;
   const download=new Promise((resolve,reject)=>{
@@ -61,7 +61,9 @@ async function exportContacts(env,{chromium}={}){
  }catch(error){
   // Playwright errors may contain credential-bearing connection URLs. Never pass them through.
   if(error instanceof SyncError)throw error;
+  if(error?.name==='TimeoutError')throw new SyncError('STEP_TIMEOUT',stage);
+  if(stage==='connect'&&/Unexpected server response: (401|403)/.test(String(error?.message)))throw new SyncError('BROWSER_CONNECTION_REJECTED',stage);
   throw new SyncError('AUTOMATION_FAILED',stage);
- }finally{clearTimeout(deadline);if(browser)await browser.close().catch(()=>{});}
+ }finally{clearTimeout(deadline);if(browser){let cleanupTimer;try{await Promise.race([browser.close().catch(()=>{}),new Promise(resolve=>{cleanupTimer=setTimeout(resolve,5000)})])}finally{clearTimeout(cleanupTimer)}}}
 }
 module.exports={SyncError,configuration,inspectDownload,exportContacts};

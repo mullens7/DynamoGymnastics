@@ -7,12 +7,13 @@ document.querySelector('.sync-member').addEventListener('click',()=>{
   const status=document.querySelector('#sync-status'),start=document.querySelector('#sync-start');
   start.disabled=true;status.textContent='Logging in and preparing the export… This can take up to two minutes.';
   const testKey=f.get('testKey');document.querySelector('#sync-key').value='';
+  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),130000);
   try{
-   const response=await fetch('/api/sync-members/',{method:'POST',headers:{Authorization:'Bearer '+testKey,'Content-Type':'application/json'},body:'{}',cache:'no-store',redirect:'error'});
+   const response=await fetch('/api/sync-members/',{method:'POST',signal:controller.signal,headers:{Authorization:'Bearer '+testKey,'Content-Type':'application/json'},body:'{}',cache:'no-store',redirect:'error'});
    let result;try{result=await response.json()}catch{throw new Error('The export service could not be reached. Check that the latest Vercel deployment has finished.');}
-   if(!response.ok)throw new Error(result.message||'The connection test failed.');
+   if(!response.ok)throw new Error((result.message||'The connection test failed.')+(result.stage?' Step: '+result.stage+'.':''));
    status.textContent=`Download test completed: ${result.format.toUpperCase()}, ${Math.ceil(result.bytes/1024)} KB, ${(result.elapsedMs/1000).toFixed(1)} seconds. Membership records were not changed.`;
-  }catch(error){status.textContent=error.message||'The export test could not be completed.';}
-  finally{syncTestRunning=false;start.disabled=false;}
+  }catch(error){status.textContent=error.name==='AbortError'?'The server did not return a result within the test time limit. Please close this panel and contact the administrator.':error.message||'The export test could not be completed.';}
+  finally{clearTimeout(timeout);syncTestRunning=false;start.disabled=false;}
  });
 });
