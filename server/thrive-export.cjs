@@ -41,8 +41,8 @@ async function clickExportControl(control){
   console.info('Thrive export click: viewport geometry fallback');
  }
 }
-async function exportContacts(env,{chromium,includeWorkbook=false}={}){
- const config=configuration(env),started=Date.now();let browser,stage='connect',check='browser connection',deadline,page;
+async function exportContacts(env,{chromium,includeWorkbook=false,onProgress=()=>{}}={}){
+ const config=configuration(env),started=Date.now();onProgress({percent:5,label:'Connecting to Thrive4'});let browser,stage='connect',check='browser connection',deadline,page;
  // No traces, screenshots, response bodies, credentials or member files are logged or saved.
  const task=(async()=>{
   chromium ||= require('playwright-core').chromium;
@@ -51,11 +51,11 @@ async function exportContacts(env,{chromium,includeWorkbook=false}={}){
   browser=await chromium.connectOverCDP(endpoint.href,{timeout:15000});
   const context=browser.contexts()[0];if(!context)throw new SyncError('BROWSER_UNAVAILABLE',stage);
   page=await context.newPage();await page.setViewportSize({width:2560,height:2160});page.setDefaultTimeout(20000);page.setDefaultNavigationTimeout(25000);
-  stage='login';check='Thrive4 sign-in';console.info('Thrive export stage: login');await page.goto('https://club.thrive4.com/#/?sector=gymnastics',{waitUntil:'domcontentloaded'});
+  stage='login';onProgress({percent:15,label:'Signing in to Thrive4'});check='Thrive4 sign-in';console.info('Thrive export stage: login');await page.goto('https://club.thrive4.com/#/?sector=gymnastics',{waitUntil:'domcontentloaded'});
   await page.locator('#login_email').fill(config.email);await page.locator('#login_password').fill(config.password);
   await page.locator('#login_submit').click();
   await page.waitForURL(url=>url.hash.startsWith('#/app/business/'),{timeout:25000});
-  stage='organisation';console.info('Thrive export stage: organisation');
+  stage='organisation';onProgress({percent:35,label:'Opening Dynamo Gymnastics'});console.info('Thrive export stage: organisation');
   const navigation=page.getByRole('menuitem',{name:'Contact management',exact:true});
   const organisation=page.getByText('Dynamo School Of Gymnastics',{exact:true});
   check='organisation chooser or club menu';console.info('Thrive export check:',check);
@@ -68,7 +68,7 @@ async function exportContacts(env,{chromium,includeWorkbook=false}={}){
   await navigation.waitFor({state:'visible'});
   // A chooser card alone does not prove an organisation is selected.
   await organisation.first().waitFor({state:'visible'});
-  stage='contacts';console.info('Thrive export stage: contacts');
+  stage='contacts';onProgress({percent:50,label:'Opening Contacts'});console.info('Thrive export stage: contacts');
   check='expand Contact management';console.info('Thrive export check:',check);
   await navigation.click();
   check='open Contacts menu';console.info('Thrive export check:',check);
@@ -80,7 +80,7 @@ async function exportContacts(env,{chromium,includeWorkbook=false}={}){
   console.info('Thrive export contacts: export control ready');
   // Workbook-column validation belongs to the import stage. This endpoint
   // only tests downloading and never grants membership from visible columns.
-  stage='download';check='enable download transfer';console.info('Thrive export stage: download');const cdp=await context.newCDPSession(page);
+  stage='download';onProgress({percent:65,label:'Downloading the member export'});check='enable download transfer';console.info('Thrive export stage: download');const cdp=await context.newCDPSession(page);
   await cdp.send('Browserless.setDownloadEnabled',{enabled:true});
   let downloadTimer,listener;
   const download=new Promise((resolve,reject)=>{

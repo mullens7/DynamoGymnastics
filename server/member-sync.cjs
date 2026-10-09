@@ -12,11 +12,13 @@ function snapshotHash(owners){
  const canonical=owners.map(owner=>({...owner,gymnasts:owner.gymnasts.map(g=>({...g,groups:[...g.groups].sort()})).sort((a,b)=>a.sourceId.localeCompare(b.sourceId))})).sort((a,b)=>a.email.localeCompare(b.email));
  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }
-async function syncMembers(env){
+async function syncMembers(env,{onProgress=()=>{}}={}){
  const config=settings(env),startedAt=new Date().toISOString();
- const download=await exportContacts(env,{includeWorkbook:true});
+ const download=await exportContacts(env,{includeWorkbook:true,onProgress});
+ onProgress({percent:80,label:'Checking memberships and gymnast profiles'});
  if(download.format!=='xlsx')throw new RosterError('INVALID_ROSTER');
  const report={},workbook=await readWorkbook(download.workbook),owners=prepareRoster(workbook,config.mapping,report);
+ onProgress({percent:90,label:'Saving memberships and retaining account history'});
  const response=await fetch(config.url+'/rest/v1/rpc/apply_dynamo_roster',{method:'POST',headers:{...config.headers,'Content-Type':'application/json'},redirect:'error',body:JSON.stringify({p_hash:snapshotHash(owners),p_started_at:startedAt,p_rows:owners}),signal:AbortSignal.timeout(20000)});
  if(!response.ok){let code;try{code=(await response.json()).message;}catch{}
   throw new RosterError(['SNAPSHOT_REVIEW_REQUIRED','STALE_SNAPSHOT','IDENTITY_REVIEW_REQUIRED'].includes(code)?code:'SYNC_STORAGE_FAILED');}

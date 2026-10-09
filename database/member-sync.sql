@@ -55,8 +55,8 @@ declare previous public.dynamo_roster_runs%rowtype; same public.dynamo_roster_ru
 begin
  perform pg_advisory_xact_lock(719442001);
  if p_hash !~ '^[a-f0-9]{64}$' or jsonb_typeof(p_rows)<>'array' or jsonb_array_length(p_rows)=0 then raise exception 'SNAPSHOT_REVIEW_REQUIRED'; end if;
- select * into same from public.dynamo_roster_runs where snapshot_hash=p_hash;
- if found then return jsonb_build_object('unchanged',true,'accounts',same.accounts,'members',same.members,'staff',same.staff); end if;
+ select * into same from public.dynamo_roster_runs order by started_at desc limit 1;
+ if found and same.snapshot_hash=p_hash then return jsonb_build_object('unchanged',true,'accounts',same.accounts,'members',same.members,'staff',same.staff); end if;
  select count(*),count(*) filter(where (x->>'member')::boolean),count(*) filter(where (x->>'staff')::boolean),coalesce(sum(jsonb_array_length(x->'gymnasts')),0)
  into n_accounts,n_members,n_staff,n_gymnasts from jsonb_array_elements(p_rows) x;
  select * into previous from public.dynamo_roster_runs order by started_at desc limit 1;
@@ -92,7 +92,8 @@ begin
   end loop;
  end loop;
  insert into public.dynamo_roster_runs(snapshot_hash,started_at,accounts,members,staff,gymnasts)
- values(p_hash,p_started_at,n_accounts,n_members,n_staff,n_gymnasts);
+ values(p_hash,p_started_at,n_accounts,n_members,n_staff,n_gymnasts)
+ on conflict(snapshot_hash) do update set started_at=excluded.started_at,completed_at=now(),accounts=excluded.accounts,members=excluded.members,staff=excluded.staff,gymnasts=excluded.gymnasts;
  return jsonb_build_object('unchanged',false,'accounts',n_accounts,'members',n_members,'staff',n_staff);
 end $$;
 revoke all on function public.apply_dynamo_roster(text,timestamptz,jsonb) from public,anon,authenticated;

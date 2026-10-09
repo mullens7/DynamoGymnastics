@@ -6,6 +6,9 @@
   "functions": {
     "api/sync-members.js": {
       "maxDuration": 150
+    },
+    "api/scheduled-sync.js": {
+      "maxDuration": 150
     }
   }
 }
