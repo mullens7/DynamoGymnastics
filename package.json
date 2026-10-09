@@ -1,0 +1,6 @@
+{
+ "name":"dynamo-gymnastics-website",
+ "version":"0.1.0",
+ "private":true,
+ "scripts":{"dev":"python3 -m http.server 3000 --directory public", "build":"node scripts/build.mjs"}
+}

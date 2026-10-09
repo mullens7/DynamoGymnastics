@@ -1,0 +1,80 @@
+{
+  "pages": [
+    {
+      "path": "/",
+      "title": "Home | Dynamo Gymnastics",
+      "images": 6
+    },
+    {
+      "path": "/octoberhalfterm",
+      "title": "October Half-Term | Dynamo Gymnastics",
+      "images": 18
+    },
+    {
+      "path": "/results",
+      "title": "Dynamo Gymnastics",
+      "images": 0
+    },
+    {
+      "path": "/terms",
+      "title": "Terms & Conditions | Dynamo Gymnastics",
+      "images": 2
+    },
+    {
+      "path": "/policies",
+      "title": "Policies | Dynamo Gymnastics",
+      "images": 2
+    },
+    {
+      "path": "/parties",
+      "title": "Birthday Parties | Dynamo Gymnastics",
+      "images": 2
+    },
+    {
+      "path": "/gallery",
+      "title": "Gallery | Dynamo Gymnastics",
+      "images": 11
+    },
+    {
+      "path": "/classes",
+      "title": "Classes | Dynamo Gymnastics",
+      "images": 3
+    },
+    {
+      "path": "/contact-us",
+      "title": "Contact Us | Dynamo Gymnastics",
+      "images": 2
+    },
+    {
+      "path": "/staff",
+      "title": "Dynamo Gymnastics",
+      "images": 0
+    },
+    {
+      "path": "/parties/biggym-member",
+      "title": "Dynamo Gymnastics",
+      "images": 0
+    },
+    {
+      "path": "/parties/biggym-nonmember",
+      "title": "Birthday Party Selection Non-Member | Dynamo Gymnastics",
+      "images": 2
+    },
+    {
+      "path": "",
+      "title": "Home | Dynamo Gymnastics",
+      "images": 6
+    },
+    {
+      "path": "/parties/non-member",
+      "title": "Non-Member Birthday Party | Dynamo Gymnastics",
+      "images": 3
+    },
+    {
+      "path": "/parties/smallgym-nonmember",
+      "title": "Member Birthday Party | Dynamo Gymnastics",
+      "images": 3
+    }
+  ],
+  "assets": 21
+}
