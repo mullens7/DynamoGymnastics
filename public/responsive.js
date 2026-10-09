@@ -1,6 +1,7 @@
 /* Keep responsive tables labelled after asynchronous page updates. */
 (() => {
  function labelTables() {
+  document.querySelectorAll('dialog').forEach(dialog=>{const heading=dialog.querySelector('h2');if(heading&&dialog.getAttribute('aria-label')!==heading.textContent)dialog.setAttribute('aria-label',heading.textContent);});
   document.querySelectorAll('table').forEach(table => {
    const headings = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
    table.querySelectorAll('tbody tr').forEach(row => Array.from(row.children).forEach((cell, index) => {
