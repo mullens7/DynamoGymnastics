@@ -15,3 +15,6 @@ function sameOrigin(req){try{const origin=new URL(req.headers.origin);return ori
 function allowed(req,env=process.env){return authenticated(req,env)&&(req.method==='GET'||req.method==='HEAD'||sameOrigin(req)||equal(req.headers.authorization,'Bearer '+env.SYNC_TEST_KEY));}
 function cookie(value,maxAge=TTL){return `${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;}
 module.exports={token,session,authenticated,allowed,sameOrigin,cookie,equal,configured};
+
+async function authorizeAdmin(req,env=process.env){if(allowed(req,env))return true;try{const user=await require('./user-auth.cjs').currentUser(req,env);return !!user?.websiteAdmin&&(req.method==='GET'||req.method==='HEAD'||sameOrigin(req));}catch{return false;}}
+module.exports.authorizeAdmin=authorizeAdmin;

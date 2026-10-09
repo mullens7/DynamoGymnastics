@@ -4,3 +4,4 @@
 .sync-progress-heading{display:flex;align-items:center;gap:16px;margin:24px 0 12px}.sync-progress-heading strong{font-size:30px;color:#1656a4}.sync-progress-heading span{font-size:14px;color:#45566a}#sync-progress{width:100%;height:18px;accent-color:#1656a4}#sync-progress::-webkit-progress-bar{background:#e9eff6;border-radius:9px}#sync-progress::-webkit-progress-value{background:#1656a4;border-radius:9px}#sync-pin{max-width:160px;font-size:24px;letter-spacing:8px;text-align:center}
 
 .last-synced{display:block;color:#dce9f7;font-size:10px;white-space:nowrap;text-align:center;margin:-20px 0 20px}.metrics{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}@media(max-width:600px){.last-synced{text-align:left;margin:0 0 15px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+[hidden]{display:none!important}dialog:has(table){width:950px}nav{overflow:auto}@media(max-width:600px){nav{flex-wrap:wrap}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}

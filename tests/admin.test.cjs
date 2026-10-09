@@ -22,12 +22,12 @@ test('sign in issues only an HttpOnly secure cookie and sign out clears it',asyn
  await handler(request,response);assert.equal(response.code,200);assert.match(response.headers['Set-Cookie'],/HttpOnly; Secure; SameSite=Strict/);assert.equal(JSON.stringify(response.body).includes(env.SYNC_TEST_KEY),false);
  const followup={method:'GET',headers:{cookie:response.headers['Set-Cookie'].split(';')[0]}},read=res();await handler(followup,read);assert.equal(read.code,200);
  const wrong=res();await handler({...request,body:{key:'incorrect'}},wrong);assert.equal(wrong.code,401);assert.equal(wrong.headers['Set-Cookie'],undefined);
- const out=res();await handler({...request,method:'DELETE'},out);assert.match(out.headers['Set-Cookie'],/Max-Age=0/);
+ const out=res();await handler({...request,method:'DELETE'},out);assert.equal(out.headers['Set-Cookie'].length,2);for(const value of out.headers['Set-Cookie'])assert.match(value,/Max-Age=0/);
 });
 test('record validation enforces trusted prices, groups, dates and limits',()=>{
  assert.deepEqual(validate('events',{...event,unknown:'ignored'}),event);
  for(const changed of [{capacity:0},{memberPriceCents:-1},{memberPriceCents:1.5},{allowedGroups:['invented']},{date:'2026-02-30'},{time:'25:00'},{audience:'groups',allowedGroups:[]}])assert.throws(()=>validate('events',{...event,...changed}));
- assert.deepEqual(validate('parties',{name:'Birthday',date:'2026-10-27',time:'14:00',guests:20,room:'Big gym',status:'Confirmed'}).guests,20);
+ assert.deepEqual(validate('parties',{name:'Birthday',date:'2026-10-27',time:'14:00',guests:20,room:'Big gym',status:'Confirmed',memberPriceCents:1000,nonMemberPriceCents:1500}).guests,20);
 });
 test('unauthenticated writes and payments mutations never contact storage',async()=>{
  const handler=makeRecordsHandler(env),r=res();await handler({method:'POST',headers:{},query:{kind:'events'},body:event},r);assert.equal(r.code,401);

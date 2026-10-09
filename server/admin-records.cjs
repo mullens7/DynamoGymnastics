@@ -1,5 +1,5 @@
 const {database}=require('./database.cjs');
-const {allowed}=require('./admin-auth.cjs');
+const {authorizeAdmin}=require('./admin-auth.cjs');
 const {groups}=require('../public/manage/membership.js');
 const kinds={events:'dynamo_events',parties:'dynamo_parties',payments:'dynamo_transactions',bookings:'dynamo_event_bookings'};
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
@@ -13,7 +13,8 @@ function validate(kind,input){
  const count=input[kind==='parties'?'guests':'capacity'];if(!Number.isInteger(count)||count<1||count>10000)throw Error('Capacity must be between 1 and 10,000.');
  if(kind==='parties'){
   if(!['Big gym','Small gym'].includes(input.room)||!['Confirmed','Pending','Cancelled'].includes(input.status))throw Error('Select a valid room and status.');
-  return {...record,guests:count,room:input.room,status:input.status};
+  for(const key of ['memberPriceCents','nonMemberPriceCents'])if(!Number.isSafeInteger(input[key])||input[key]<0||input[key]>1000000)throw Error('Enter valid member and non-member party prices.');
+  return {...record,guests:count,room:input.room,status:input.status,memberPriceCents:input.memberPriceCents,nonMemberPriceCents:input.nonMemberPriceCents};
  }
  for(const key of ['memberPriceCents','nonMemberPriceCents']){if(!Number.isSafeInteger(input[key])||input[key]<0||input[key]>1000000)throw Error('Enter valid member and non-member prices.');record[key]=input[key];}
  if(!['Draft','Published'].includes(input.status)||!['everyone','members','groups'].includes(input.audience))throw Error('Select a valid status and audience.');
@@ -27,7 +28,7 @@ async function request(config,url,options={}){
 async function all(config,url){const rows=[];for(let offset=0;offset<=20000;offset+=500){url.searchParams.set('limit','500');url.searchParams.set('offset',String(offset));const page=await request(config,url);rows.push(...page);if(page.length<500)return rows;}throw Error('STORAGE_FAILED');}
 function makeRecordsHandler(env=process.env){return async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
- if(!allowed(req,env))return res.status(401).json({message:'Sign in to management.'});
+ if(!await authorizeAdmin(req,env))return res.status(401).json({message:'Sign in to management.'});
  const kind=req.query?.kind;if(!Object.hasOwn(kinds,kind))return res.status(400).json({message:'Choose a valid record type.'});
  if(!['GET','POST','PATCH','DELETE'].includes(req.method))return res.status(405).json({message:'Method not allowed.'});
  if(req.method!=='GET'&&!['events','parties'].includes(kind))return res.status(405).json({message:'These records are read only.'});
@@ -38,11 +39,17 @@ function makeRecordsHandler(env=process.env){return async(req,res)=>{
   if(req.method==='GET'){
    url.searchParams.set('order','created_at.desc');
    if(['events','parties'].includes(kind)){url.searchParams.set('select','id,details');url.searchParams.set('archived','eq.false');}
-   if(kind==='payments')url.searchParams.set('select','id,created_at,amount_pence,status,dynamo_accounts(email,owner_name),dynamo_purchases(details)');
-   if(kind==='bookings'){url.searchParams.set('select','id,event_id,status,created_at,dynamo_accounts(email,owner_name),dynamo_gymnasts(first_name,last_name)');}
-   const records=await all(config,url);return res.status(200).json({records:['events','parties'].includes(kind)?records.map(r=>({...r.details,id:r.id})):records});
+   if(kind==='payments')url.searchParams.set('select','id,created_at,amount_pence,status,payment_method,refunded_pence,purchase_id,dynamo_accounts(email,owner_name),dynamo_purchases(details)');
+   if(kind==='bookings'){url.searchParams.set('select','id,event_id,status,purchase_id,price_pence,created_at,dynamo_accounts(email,owner_name),dynamo_gymnasts(first_name,last_name),event:dynamo_events(details)');}
+   const records=await all(config,url);if(kind==='bookings'){const partiesUrl=new URL(config.url+'/rest/v1/dynamo_party_bookings?select=id,party_id,status,purchase_id,price_pence,created_at,dynamo_accounts(email,owner_name),dynamo_gymnasts(first_name,last_name),party:dynamo_parties(details)&order=created_at.desc');const partyBookings=await all(config,partiesUrl);return res.status(200).json({records:[...records.map(r=>({...r,kind:'event',session:r.event?.details,event:undefined})),...partyBookings.map(r=>({...r,kind:'party',session:r.party?.details,party:undefined}))]});}return res.status(200).json({records:['events','parties'].includes(kind)?records.map(r=>({...r.details,id:r.id})):records});
   }
   if(req.method==='POST'){const rows=await request(config,url,{method:'POST',body:JSON.stringify({details})});return res.status(201).json({record:{...rows[0].details,id:rows[0].id}});}
+  if(req.method==='PATCH'){
+   const bookingUrl=new URL(config.url+'/rest/v1/'+(kind==='parties'?'dynamo_party_bookings':'dynamo_event_bookings'));
+   bookingUrl.searchParams.set('select','id');bookingUrl.searchParams.set(kind==='parties'?'party_id':'event_id','eq.'+req.query.id);bookingUrl.searchParams.set('status','eq.Booked');const bookings=await all(config,bookingUrl);
+   if(kind==='events'&&bookings.length>details.capacity)return res.status(400).json({message:'Capacity cannot be lower than the number of booked gymnasts.'});
+   if(kind==='parties'&&bookings.length){const existingUrl=new URL(config.url+'/rest/v1/dynamo_parties?select=details&id=eq.'+req.query.id);const existing=await request(config,existingUrl);const old=existing[0]?.details;if(old&&(old.date!==details.date||old.time!==details.time||old.room!==details.room))return res.status(400).json({message:'Use the booking’s Move action to change a booked party slot.'});if(details.status==='Cancelled')return res.status(400).json({message:'Cancel the linked booking from Bookings first.'});}
+  }
   url.searchParams.set('id','eq.'+req.query.id);url.searchParams.set('archived','eq.false');
   const rows=await request(config,url,{method:'PATCH',body:JSON.stringify(req.method==='DELETE'?{archived:true}:{details})});
   if(!rows.length)return res.status(404).json({message:'The record is no longer available.'});

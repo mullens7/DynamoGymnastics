@@ -12,6 +12,15 @@
     },
     "api/email-status.js": {
       "maxDuration": 60
+    },
+    "api/login.js": {
+      "maxDuration": 60
+    },
+    "api/account.js": {
+      "maxDuration": 60
+    },
+    "api/admin-operations.js": {
+      "maxDuration": 60
     }
   }
 }

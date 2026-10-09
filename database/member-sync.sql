@@ -51,7 +51,7 @@ create or replace function public.apply_dynamo_roster(p_hash text,p_started_at t
 returns jsonb language plpgsql security invoker set search_path='' as $$
 declare previous public.dynamo_roster_runs%rowtype; same public.dynamo_roster_runs%rowtype;
  n_accounts integer; n_members integer; n_staff integer; n_gymnasts integer;
- owner jsonb; gymnast jsonb; account_uuid uuid; existing_owner uuid;
+ owner jsonb; gymnast jsonb; account_uuid uuid; existing_owner uuid; manual_profile uuid; manual_matches integer;
 begin
  perform pg_advisory_xact_lock(719442001);
  if p_hash !~ '^[a-f0-9]{64}$' or jsonb_typeof(p_rows)<>'array' or jsonb_array_length(p_rows)=0 then raise exception 'SNAPSHOT_REVIEW_REQUIRED'; end if;
@@ -85,6 +85,14 @@ begin
        or (old.date_of_birth=gymnast->>'dateOfBirth' and lower(btrim(old.first_name))=lower(btrim(gymnast->>'firstName')) and lower(btrim(old.last_name))=lower(btrim(gymnast->>'lastName')))
       )
     ) then raise exception 'IDENTITY_REVIEW_REQUIRED'; end if;
+    -- Promote a uniquely matching user-entered child without changing its UUID/history.
+    select count(*),(array_agg(old.id))[1] into manual_matches,manual_profile
+    from public.dynamo_gymnasts old where old.account_id=account_uuid and old.source_id like 'manual:%'
+     and old.date_of_birth=gymnast->>'dateOfBirth'
+     and lower(btrim(old.first_name))=lower(btrim(gymnast->>'firstName'))
+     and lower(btrim(old.last_name))=lower(btrim(gymnast->>'lastName'));
+    if manual_matches>1 then raise exception 'IDENTITY_REVIEW_REQUIRED'; end if;
+    if manual_matches=1 then update public.dynamo_gymnasts set source_id=gymnast->>'sourceId' where id=manual_profile;end if;
    end if;
    insert into public.dynamo_gymnasts(account_id,source_id,first_name,last_name,date_of_birth,bg_number,groups,active)
    values(account_uuid,gymnast->>'sourceId',gymnast->>'firstName',gymnast->>'lastName',gymnast->>'dateOfBirth',coalesce(gymnast->>'bgNumber',''),array(select jsonb_array_elements_text(gymnast->'groups')),(gymnast->>'active')::boolean)
