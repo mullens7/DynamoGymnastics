@@ -41,7 +41,7 @@ async function clickExportControl(control){
   console.info('Thrive export click: viewport geometry fallback');
  }
 }
-async function exportContacts(env,{chromium}={}){
+async function exportContacts(env,{chromium,includeWorkbook=false}={}){
  const config=configuration(env),started=Date.now();let browser,stage='connect',check='browser connection',deadline,page;
  // No traces, screenshots, response bodies, credentials or member files are logged or saved.
  const task=(async()=>{
@@ -97,8 +97,9 @@ async function exportContacts(env,{chromium}={}){
    const interactive=exportText.locator('xpath=ancestor-or-self::*[self::button or self::a or @role="button"][1]');
    const exportControl=await interactive.count()===1?interactive:exportText;
    await clickExportControl(exportControl);
-   const result=inspectDownload(await download);
-   return {...result,elapsedMs:Date.now()-started,membershipUpdated:false};
+   const payload=await download;
+   const result=inspectDownload(payload);
+   return {...result,elapsedMs:Date.now()-started,membershipUpdated:false,...(includeWorkbook?{workbook:Buffer.from(payload.data,'base64')}:{})};
   }finally{clearTimeout(downloadTimer);cdp.off('Browserless.fileDownloaded',listener);}
  })();
  try{
