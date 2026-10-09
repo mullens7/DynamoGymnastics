@@ -8,7 +8,7 @@ document.querySelector('.sync-member').addEventListener('click',()=>{
   start.disabled=true;status.textContent='Logging in and preparing the export… This can take up to two minutes.';
   const testKey=f.get('testKey');document.querySelector('#sync-key').value='';
   try{
-   const response=await fetch('/api/sync-members',{method:'POST',headers:{Authorization:'Bearer '+testKey,'Content-Type':'application/json'},body:'{}',cache:'no-store',redirect:'error'});
+   const response=await fetch('/api/sync-members/',{method:'POST',headers:{Authorization:'Bearer '+testKey,'Content-Type':'application/json'},body:'{}',cache:'no-store',redirect:'error'});
    let result;try{result=await response.json()}catch{throw new Error('The export service could not be reached. Check that the latest Vercel deployment has finished.');}
    if(!response.ok)throw new Error(result.message||'The connection test failed.');
    status.textContent=`Download test completed: ${result.format.toUpperCase()}, ${Math.ceil(result.bytes/1024)} KB, ${(result.elapsedMs/1000).toFixed(1)} seconds. Membership records were not changed.`;
