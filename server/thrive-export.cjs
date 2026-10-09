@@ -35,11 +35,15 @@ async function exportContacts(env,{chromium}={}){
   }
   // Verify the organisation before exporting. Do not accidentally export Gymtots.
   await page.getByText('Dynamo School Of Gymnastics',{exact:true}).first().waitFor({state:'visible'});
-  stage='contacts';console.info('Thrive export stage: contacts');await page.locator('#nav-contactManagement').click();await page.locator('#nav-contacts').click();
-  await page.waitForURL(url=>url.hash==='#/app/business/crm');
-  for(const heading of ['Time and class','Account owner','Owner email','Date of birth']){
-   await page.getByRole('columnheader',{name:heading,exact:true}).waitFor({state:'visible'});
-  }
+  stage='contacts';console.info('Thrive export stage: contacts');
+  // Use the Contacts route observed in Dynamo's portal. Menu expansion and
+  // custom visible columns can differ in a fresh browser session.
+  await page.goto('https://club.thrive4.com/#/app/business/crm',{waitUntil:'domcontentloaded'});
+  await page.getByText('Dynamo School Of Gymnastics',{exact:true}).first().waitFor({state:'visible'});
+  await page.getByRole('button',{name:'Export',exact:true}).waitFor({state:'visible'});
+  console.info('Thrive export contacts: export control ready');
+  // Workbook-column validation belongs to the import stage. This endpoint
+  // only tests downloading and never grants membership from visible columns.
   stage='download';console.info('Thrive export stage: download');const cdp=await context.newCDPSession(page);
   await cdp.send('Browserless.setDownloadEnabled',{enabled:true});
   let downloadTimer,listener;

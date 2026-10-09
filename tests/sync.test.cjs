@@ -25,9 +25,9 @@ test('worker follows verified navigation and always closes the remote browser',a
  const cdp=new EventEmitter();cdp.send=async()=>{};const actions=[];let closed=0;
  const buffer=Buffer.alloc(200);Buffer.from([0x50,0x4b,0x03,0x04]).copy(buffer);
  const node=name=>({fill:async()=>actions.push(name),click:async()=>{actions.push(name);if(name==='Export')cdp.emit('Browserless.fileDownloaded',{filename:'contacts.xlsx',data:buffer.toString('base64')})},waitFor:async()=>{},first(){return this}});
- const page={setDefaultTimeout(){},setDefaultNavigationTimeout(){},goto:async()=>{},url:()=> 'https://club.thrive4.com/#/app/business/dashboard',waitForURL:async()=>{},locator:node,getByText:node,getByRole:(role,{name})=>node(name)};
+ const destinations=[];const page={setDefaultTimeout(){},setDefaultNavigationTimeout(){},goto:async url=>destinations.push(url),url:()=> 'https://club.thrive4.com/#/app/business/dashboard',waitForURL:async()=>{},locator:node,getByText:node,getByRole:(role,{name})=>{assert.notEqual(role,'columnheader','Fresh sessions must not require custom visible columns');return node(name)}};
  const browser={contexts:()=>[{newPage:async()=>page,newCDPSession:async()=>cdp}],close:async()=>{closed++}};
  const env={BROWSERLESS_TOKEN:'fixture-token',THRIVE_EMAIL:'fixture@example.invalid',THRIVE_PASSWORD:'fixture-password'};
- const result=await exportContacts(env,{chromium:{connectOverCDP:async()=>browser}});assert.equal(result.membershipUpdated,false);assert.equal(result.bytes,200);assert.equal(closed,1);assert.deepEqual(actions,['#login_email','#login_password','#login_submit','#nav-contactManagement','#nav-contacts','Export']);
+ const result=await exportContacts(env,{chromium:{connectOverCDP:async()=>browser}});assert.equal(result.membershipUpdated,false);assert.equal(result.bytes,200);assert.equal(closed,1);assert.deepEqual(actions,['#login_email','#login_password','#login_submit','Export']);assert.deepEqual(destinations,['https://club.thrive4.com/#/?sector=gymnastics','https://club.thrive4.com/#/app/business/crm']);
  closed=0;page.goto=async()=>{throw new Error('secret error')};await assert.rejects(exportContacts(env,{chromium:{connectOverCDP:async()=>browser}}),{code:'AUTOMATION_FAILED',stage:'login'});assert.equal(closed,1);
 });
