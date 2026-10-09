@@ -1,1 +1,11 @@
-{"buildCommand":"npm run build","outputDirectory":"dist","cleanUrls":true,"trailingSlash":true}
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "cleanUrls": true,
+  "trailingSlash": true,
+  "functions": {
+    "api/sync-members.js": {
+      "maxDuration": 150
+    }
+  }
+}
