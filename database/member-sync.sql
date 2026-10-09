@@ -64,8 +64,8 @@ begin
   if p_started_at<=previous.started_at then raise exception 'STALE_SNAPSHOT'; end if;
   if n_accounts<previous.accounts*0.75 or n_members<previous.members*0.75 or n_gymnasts<previous.gymnasts*0.75 then raise exception 'SNAPSHOT_REVIEW_REQUIRED'; end if;
  end if;
- update public.dynamo_accounts set roster_member=false,roster_staff=false;
- update public.dynamo_gymnasts set active=false;
+ update public.dynamo_accounts set roster_member=false,roster_staff=false where roster_member or roster_staff;
+ update public.dynamo_gymnasts set active=false where active;
  for owner in select value from jsonb_array_elements(p_rows) loop
   insert into public.dynamo_accounts(email,owner_name,roster_member,roster_staff)
   values(owner->>'email',coalesce(owner->>'ownerName',''),(owner->>'member')::boolean,(owner->>'staff')::boolean)
