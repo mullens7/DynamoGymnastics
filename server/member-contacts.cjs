@@ -1,9 +1,9 @@
 const {database}=require('./database.cjs');
-const {authorised}=require('./sync-handler.cjs');
+const {allowed}=require('./admin-auth.cjs');
 module.exports=async function(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  if(req.method!=='GET')return res.status(405).json({error:'METHOD_NOT_ALLOWED'});
- if(!authorised(req.headers.authorization,process.env.SYNC_TEST_KEY))return res.status(401).json({error:'UNAUTHORISED'});
+ if(!allowed(req))return res.status(401).json({error:'UNAUTHORISED'});
  if(!process.env.SUPABASE_URL||!(process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY))return res.status(503).json({error:'DATABASE_NOT_CONFIGURED'});
  try{
   const config=database(process.env),url=new URL(config.url);

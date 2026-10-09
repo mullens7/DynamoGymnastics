@@ -1,4 +1,5 @@
 const {createHash,timingSafeEqual}=require('node:crypto');
+const {allowed}=require('./admin-auth.cjs');
 const {exportContacts}=require('./thrive-export.cjs');
 const {syncMembers}=require('./member-sync.cjs');
 const {readWorkbook}=require('./member-roster.cjs');
@@ -11,7 +12,7 @@ function authorised(header,key){
 function makeHandler(env=process.env,run=exportContacts){return async function(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  if(req.method!=='POST'){res.setHeader('Allow','POST');return res.status(405).json({error:'METHOD_NOT_ALLOWED'});}
- if(!authorised(req.headers.authorization,env.SYNC_TEST_KEY))return res.status(401).json({error:'UNAUTHORISED',message:'An administrator test key is required.'});
+ if(!allowed(req,env))return res.status(401).json({error:'UNAUTHORISED',message:'Sign in to management.'});
  // Requests cannot supply credentials, URLs, organisation names, selectors or export actions.
  try{
   const mode=req.body?.mode||'test';

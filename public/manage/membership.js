@@ -1,4 +1,4 @@
-/* Shared rules for the preview and future trusted, server-side imports.
+/* Shared membership rules for management and trusted server-side imports.
    Classification alone never proves active enrolment or authorises portal access. */
 (function(root){
   const groups = Object.freeze({gymtots:'Gymtots',gymini:'Gymini',recreational:'Recreational',advanced:'Advanced',mens_squad:"Men’s Squad",mens_development:"Men’s Development Squad",womens_squad:"Women’s Squad",womens_development:"Women’s Development Squad"});
