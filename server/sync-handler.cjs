@@ -1,7 +1,7 @@
 const {createHash,timingSafeEqual}=require('node:crypto');
 const {exportContacts}=require('./thrive-export.cjs');
 const messages={STEP_TIMEOUT:'The current automation step timed out. Check the reported step below.',BROWSER_CONNECTION_REJECTED:'Browserless rejected the browser connection. Check your API token and account endpoint.',NOT_CONFIGURED:'Browserless and Thrive4 credentials have not been configured.',INVALID_EXPORT:'The downloaded file was not recognised as an Excel export.',EXPORT_TIMEOUT:'Thrive4 did not finish the export in time.',SESSION_TIMEOUT:'The free-plan test exceeded its time limit.',BROWSER_UNAVAILABLE:'A browser session could not be started.',AUTOMATION_FAILED:'The login or export flow could not be completed. Extra verification or changed page controls may need attention.'};
-const checks=['Thrive4 sign-in','enable download transfer','download Excel export','browser connection','organisation chooser or club menu','select Dynamo organisation','club navigation after selection','expand Contact management','open Contacts menu','Contacts Export button'];
+const checks=['Contacts page navigation','Thrive4 sign-in','enable download transfer','download Excel export','browser connection','organisation chooser or club menu','select Dynamo organisation','club navigation after selection','expand Contact management','open Contacts menu','Contacts Export button'];
 function authorised(header,key){
  if(typeof key!=='string'||key.length<32||typeof header!=='string'||header.length>1024)return false;
  return timingSafeEqual(createHash('sha256').update(header).digest(),createHash('sha256').update('Bearer '+key).digest());
