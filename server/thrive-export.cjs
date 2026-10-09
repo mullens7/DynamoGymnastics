@@ -73,7 +73,13 @@ async function exportContacts(env,{chromium}={}){
   download.catch(()=>{});
   try{
    check='download Excel export';console.info('Thrive export check:',check);
-   await page.getByText('Export',{exact:true}).click();
+   const exportText=page.getByText('Export',{exact:true});
+   // Use the surrounding interactive control, rather than a nested text span.
+   const interactive=exportText.locator('xpath=ancestor-or-self::*[self::button or self::a or @role="button"][1]');
+   const exportControl=await interactive.count()===1?interactive:exportText;
+   await exportControl.evaluate(element=>element.scrollIntoView({block:'center',inline:'center',behavior:'instant'}));
+   await exportControl.scrollIntoViewIfNeeded();
+   await exportControl.click();
    const result=inspectDownload(await download);
    return {...result,elapsedMs:Date.now()-started,membershipUpdated:false};
   }finally{clearTimeout(downloadTimer);cdp.off('Browserless.fileDownloaded',listener);}
