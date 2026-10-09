@@ -1,7 +1,7 @@
 /* Shared rules for the preview and future trusted, server-side imports.
    Classification alone never proves active enrolment or authorises portal access. */
 (function(root){
-  const groups = Object.freeze({gymini:'Gymini',recreational:'Recreational',advanced:'Advanced',mens_squad:"Men’s Squad",mens_development:"Men’s Development Squad",womens_squad:"Women’s Squad",womens_development:"Women’s Development Squad"});
+  const groups = Object.freeze({gymtots:'Gymtots',gymini:'Gymini',recreational:'Recreational',advanced:'Advanced',mens_squad:"Men’s Squad",mens_development:"Men’s Development Squad",womens_squad:"Women’s Squad",womens_development:"Women’s Development Squad"});
   function classify(value){
     const entries = (Array.isArray(value)?value:[value]).flatMap(v=>String(v??'').split(/[,;\n|]+/)).map(s=>s.trim()).filter(Boolean);
     const result = new Set(), review = [], unmapped = [];
@@ -9,12 +9,13 @@
     for(const text of entries){
       staff ||= /coach|manager|director/i.test(text);
       const development = /\bdevelopment\b/i.test(text);
+      if(/gymtots/i.test(text))result.add('gymtots');
       if(/gymini/i.test(text))result.add('gymini');
       if(/advanced/i.test(text))result.add('advanced');
       else if(/recreational/i.test(text))result.add('recreational');
       if(/\bMA\b/i.test(text))result.add(development?'mens_development':'mens_squad');
       if(/\bWA\b/i.test(text))result.add(development?'womens_development':'womens_squad');
-      if(!/gymini|advanced|recreational|\bMA\b|\bWA\b|coach|manager|director/i.test(text)&&!/^\w+day\b/i.test(text))unmapped.push('Unmapped entry: '+text);
+      if(!/gymtots|gymini|advanced|recreational|\bMA\b|\bWA\b|coach|manager|director/i.test(text)&&!/^\w+day\b/i.test(text))unmapped.push('Unmapped entry: '+text);
     }
     // Class keywords can occur anywhere in the field; dates and notes are not separate enrolments.
     if(!result.size&&!staff)review.push(...unmapped);

@@ -35,3 +35,10 @@ test('class keywords determine membership despite accompanying time and label fr
  assert.equal(m.classify('Waiting list').groups.length,0);assert.equal(m.classify('Waiting list').staff,false);assert.equal(m.classify('Waiting list').review.length,1);
  assert.deepEqual(m.classify('MA Development, 5 Hours').groups,['mens_development']);
 });
+
+test('Gymtots is an active member group and available for event restrictions',()=>{
+ for(const label of ['Saturday 9.45-10.25, Gymtots','Saturday 9.45-10.20, gymtots'])assert.deepEqual(m.classify(label),{groups:['gymtots'],staff:false,review:[]});
+ assert.equal(m.groups.gymtots,'Gymtots');
+ const account=m.accounts([{email:'parent@example.invalid',gymnastId:'gymtots-child',timeClass:'Gymtots',active:true}])[0];
+ assert.equal(account.member,true);assert.equal(m.eligible({audience:'groups',allowedGroups:['gymtots']},account,'gymtots-child'),true);
+});

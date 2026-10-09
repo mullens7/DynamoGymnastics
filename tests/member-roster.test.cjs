@@ -56,3 +56,12 @@ test('the seven-column Thrive4 export has repeatable profile IDs independent of 
  assert.equal(first[0].gymnasts[0].sourceId,later[0].gymnasts[0].sourceId);assert.equal(first[0].gymnasts[0].dateOfBirth,'2016-01-02');assert.equal(first[0].gymnasts.length,2);assert.equal(first[1].staff,true);assert.equal(first[1].gymnasts.length,0);
  const {profileIdentity,canonicalDate}=require('../server/member-roster.cjs');assert.throws(()=>profileIdentity('a@example.invalid','Child','One',null),{code:'IDENTITY_REVIEW_REQUIRED'});assert.throws(()=>canonicalDate('31/02/2016'),{code:'IDENTITY_REVIEW_REQUIRED'});
 });
+
+test('Gymtots classification updates existing owners and changes the snapshot identity',async()=>{
+ const wb=await fixture([['t1','parent@example.invalid','Parent','Child','One','Saturday 9.45-10.25, Gymtots','2019-01-02','','Active']]);
+ const report={},roster=prepareRoster(wb,mapping,report);assert.equal(roster[0].member,true);assert.deepEqual(roster[0].gymnasts[0].groups,['gymtots']);assert.equal(report.unmappedRows,0);
+ const {snapshotHash}=require('../server/member-sync.cjs');
+ const previous=[{...roster[0],member:false,gymnasts:[]}];assert.notEqual(snapshotHash(previous),snapshotHash(roster));assert.equal(snapshotHash(roster),snapshotHash(structuredClone(roster)));
+ const existing=[{id:'retained-owner',email:'parent@example.invalid',gymnasts:[],purchases:[{id:'past-purchase'}]}];
+ const updated=reconcile(existing,roster,()=>{throw Error('Account recreated')});assert.equal(updated[0].id,'retained-owner');assert.equal(updated[0].member,true);assert.deepEqual(updated[0].purchases,existing[0].purchases);
+});
