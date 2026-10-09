@@ -1,6 +1,6 @@
 const {createHash}=require('node:crypto');
 const {classify}=require('../public/manage/membership.js');
-class RosterError extends Error {constructor(code){super(code);this.code=code;this.stage='validation';}}
+class RosterError extends Error {constructor(code,review){super(code);this.code=code;this.stage='validation';if(review)this.review=review;}}
 const normal=value=>String(value??'').trim().toLowerCase().replace(/[^a-z0-9]/g,'');
 function text(cell){
  if(cell.type===6)throw new RosterError('INVALID_ROSTER'); // Formulas are not identity fields.
@@ -42,15 +42,17 @@ function profileIdentity(email,firstName,lastName,dateOfBirth){
  const canonical=value=>value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
  return 'derived:'+createHash('sha256').update(JSON.stringify([canonical(email),canonical(firstName),canonical(lastName),dateOfBirth])).digest('hex');
 }
-function prepareRoster(workbook,mapping){
- const columns=columnMap(workbook.columns,mapping),owners=new Map(),seen=new Set();
+function prepareRoster(workbook,mapping,report={}){
+ const columns=columnMap(workbook.columns,mapping),owners=new Map(),seen=new Set(),unmapped=new Map();
+ report.unmappedRows=0;report.unmappedClasses=[];
  for(const row of workbook.rows){
   const value=field=>columns[field]?text(row.getCell(columns[field])):'';
   const email=value('email').toLowerCase();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new RosterError('INVALID_ROSTER');
   const timeClass=value('timeClass'),rule=classify(timeClass);
-  // Unmapped class entries must be reviewed, never silently drop member benefits.
-  if(rule.review.length)throw new RosterError('ROSTER_REVIEW_REQUIRED');
+  // Unknown labels grant no benefits. Ambiguous squad abbreviations still require a decision.
+  if(rule.review.some(item=>item.startsWith('“Dev”')))throw new RosterError('ROSTER_REVIEW_REQUIRED',[{row:row.number,label:timeClass.slice(0,200)}]);
+  if(rule.review.length){report.unmappedRows++;const label=timeClass.slice(0,200);unmapped.set(label,(unmapped.get(label)||0)+1);}
   const active=columns.status?mapping.activeValues.map(normal).includes(normal(value('status'))):rule.groups.length>0||rule.staff;
   let owner=owners.get(email);if(!owner){owner={email,ownerName:value('ownerName'),member:false,staff:false,gymnasts:[]};owners.set(email,owner);}
   owner.staff ||= active&&rule.staff;
@@ -61,6 +63,7 @@ function prepareRoster(workbook,mapping){
    owner.gymnasts.push({sourceId:id,firstName,lastName,dateOfBirth,bgNumber:value('bgNumber'),groups:rule.groups,active});owner.member ||= active;
   }
  }
+ report.unmappedClasses=[...unmapped].slice(0,20).map(([label,rows])=>({label,rows}));
  return [...owners.values()];
 }
 // Reference reconciliation: immutable account IDs and all unrelated history survive.

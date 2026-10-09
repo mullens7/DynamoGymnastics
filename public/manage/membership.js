@@ -4,7 +4,7 @@
   const groups = Object.freeze({gymini:'Gymini',recreational:'Recreational',advanced:'Advanced',mens_squad:"Men’s Squad",mens_development:"Men’s Development Squad",womens_squad:"Women’s Squad",womens_development:"Women’s Development Squad"});
   function classify(value){
     const entries = (Array.isArray(value)?value:[value]).flatMap(v=>String(v??'').split(/[,;\n|]+/)).map(s=>s.trim()).filter(Boolean);
-    const result = new Set(), review = [];
+    const result = new Set(), review = [], unmapped = [];
     let staff = false;
     for(const text of entries){
       staff ||= /coach|manager|director/i.test(text);
@@ -15,8 +15,10 @@
       if(/\bMA\b/i.test(text))result.add(development?'mens_development':'mens_squad');
       if(/\bWA\b/i.test(text))result.add(development?'womens_development':'womens_squad');
       if(/\bdev\b/i.test(text)&&!development)review.push('“Dev” is not mapped to Development: '+text);
-      if(!/gymini|advanced|recreational|\bMA\b|\bWA\b|coach|manager|director/i.test(text)&&!/^\w+day\b/i.test(text))review.push('Unmapped entry: '+text);
+      if(!/gymini|advanced|recreational|\bMA\b|\bWA\b|coach|manager|director/i.test(text)&&!/^\w+day\b/i.test(text))unmapped.push('Unmapped entry: '+text);
     }
+    // Class keywords can occur anywhere in the field; dates and notes are not separate enrolments.
+    if(!result.size&&!staff)review.push(...unmapped);
     return {groups:[...result],staff,review};
   }
   // Rows must use trusted export identity fields. Never merge gymnasts by name.

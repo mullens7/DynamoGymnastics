@@ -17,6 +17,7 @@ document.querySelector('.sync-member').addEventListener('click',()=>{
     const note=document.createElement('p');note.className='help';note.textContent='Export control: '+result.diagnostic.reason+'.';panel.append(note);
     if(result.diagnostic.image){const detail=document.createElement('details');const label=document.createElement('summary');label.textContent='Show masked Thrive4 page';detail.append(label);const img=document.createElement('img');img.alt='Thrive4 export page with contact rows masked';img.style.width='100%';img.src='data:image/jpeg;base64,'+result.diagnostic.image;detail.append(img);panel.append(detail);}
    }
+   if(!response.ok&&Array.isArray(result.review)){const panel=document.querySelector('#sync-diagnostic');for(const item of result.review){const note=document.createElement('p');note.className='help';note.textContent=`Excel row ${item.row}: ${item.label}`;panel.append(note);}}
    if(!response.ok)throw new Error((result.message||'The connection test failed.')+(result.stage?' Step: '+result.stage+'.':''));
    if(mode==='sync'){
     try{
@@ -25,7 +26,9 @@ document.querySelector('.sync-member').addEventListener('click',()=>{
      data.contacts=contacts.accounts.map(a=>({id:a.id,name:a.owner_name||a.email,email:a.email,member:a.roster_member,staff:a.roster_staff,membership:a.roster_member?'Active member':'Non-member',account:'Active',review:[],gymnasts:a.dynamo_gymnasts.map(g=>({id:g.id,name:g.first_name+' '+g.last_name,active:g.active,groups:g.groups,dateOfBirth:g.date_of_birth,bgNumber:g.bg_number})),gymnast:a.dynamo_gymnasts.map(g=>g.first_name+' '+g.last_name).join(', ')||'No linked gymnast'}));
      window.dynamoLiveContacts=true;render();
     }catch{status.textContent='Sync completed, but Contacts could not be refreshed. No emails were sent.';return;}
-    status.textContent=`${result.unchanged?'Export unchanged.':'Sync completed.'} ${result.accounts} accounts, ${result.members} member accounts, ${result.staff} staff accounts. History retained. No emails sent.`;return;}
+    status.textContent=`${result.unchanged?'Export unchanged.':'Sync completed.'} ${result.accounts} accounts, ${result.members} member accounts, ${result.staff} staff accounts. History retained. No emails sent.`;
+    if(result.unmappedRows){const panel=document.querySelector('#sync-diagnostic');const note=document.createElement('p');note.className='help';note.textContent=`${result.unmappedRows} contacts have no recognised class or staff role and receive non-member access. Unrecognised labels:`;panel.append(note);for(const item of result.unmappedClasses||[]){const line=document.createElement('p');line.className='help';line.textContent=`${item.label} (${item.rows} rows)`;panel.append(line);}}
+    return;}
    if(mode==='inspect'){status.textContent=`Export checked: ${result.rowCount} rows. No records changed or emails sent.`;const panel=document.querySelector('#sync-diagnostic');const columns=document.createElement('p');columns.className='help';columns.textContent='Export columns: '+result.columns.join(' · ');panel.append(columns);return;}
    status.textContent=`Download test completed: ${result.format.toUpperCase()}, ${Math.ceil(result.bytes/1024)} KB, ${(result.elapsedMs/1000).toFixed(1)} seconds. Membership records were not changed.`;
   }catch(error){status.textContent=error.name==='AbortError'?'The server did not return a result within the test time limit. Please close this panel and contact the administrator.':error.message||'The export test could not be completed.';}

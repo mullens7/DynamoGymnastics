@@ -25,3 +25,11 @@ test('pricing and per-gymnast restrictions, no sibling privilege',()=>{
  assert.equal(m.cents('0'),0);assert.equal(m.cents('10.01'),1001);assert.throws(()=>m.cents('-1'));assert.throws(()=>m.cents('1.001'));
  assert.equal(m.quote({...e,memberPriceCents:1500},a,'2').priceCents,1500);
 });
+
+test('class keywords determine membership despite accompanying time and label fragments',()=>{
+ assert.deepEqual(m.classify('Wednesday, 7.00-9.00, Girls Advanced Recreational'),{groups:['advanced'],staff:false,review:[]});
+ assert.deepEqual(m.classify('09:00-10:00, Gymini, Summer session'),{groups:['gymini'],staff:false,review:[]});
+ assert.deepEqual(m.classify('Club Welfare Officer, General Manager'),{groups:[],staff:true,review:[]});
+ assert.equal(m.classify('Waiting list').groups.length,0);assert.equal(m.classify('Waiting list').staff,false);assert.equal(m.classify('Waiting list').review.length,1);
+ assert.deepEqual(m.classify('MA Development, 5 Hours').groups,['mens_development']);
+});
