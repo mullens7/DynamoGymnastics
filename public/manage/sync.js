@@ -1,7 +1,7 @@
 let syncRunning=false;
 $('#dialog').addEventListener('cancel',event=>{if(syncRunning)event.preventDefault();});
 document.querySelector('.sync-member').addEventListener('click',()=>{
- if(!signedIn){unlock();return;}
+ if(!signedIn){requireStaffSession();return;}
  if(syncRunning){toast('A member sync is already running.');return;}
  modal(`<h2>Sync Members</h2><p>Enter the four-digit staff code to confirm a manual sync.</p><label for="sync-pin">Confirmation code</label><input id="sync-pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" required autocomplete="off"><p class="help">Automatic syncs run at 00:00 and 12:00 UK time. No emails are sent, and account history is retained.</p><div id="sync-progress-wrap" hidden><div class="sync-progress-heading"><strong id="sync-percent">0%</strong><span id="sync-step">Preparing sync</span></div><progress id="sync-progress" value="0" max="100" aria-label="Member sync progress"></progress><p class="help">Progress follows the sync stages; remaining time can vary.</p></div><p id="sync-status" role="status" class="help"></p><div id="sync-diagnostic"></div><div class="dialog-actions"><button id="sync-close" class="secondary" type="button" data-action="close">Cancel</button><button id="sync-start" class="primary" type="submit">Sync Members</button></div>`,async f=>{
   if(syncRunning)return;syncRunning=true;
