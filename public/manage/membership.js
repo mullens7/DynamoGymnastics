@@ -8,13 +8,12 @@
     let staff = false;
     for(const text of entries){
       staff ||= /coach|manager|director/i.test(text);
-      const development = /development/i.test(text);
+      const development = /development/i.test(text)||/\bdev\b/i.test(text);
       if(/gymini/i.test(text))result.add('gymini');
       if(/advanced/i.test(text))result.add('advanced');
       else if(/recreational/i.test(text))result.add('recreational');
       if(/\bMA\b/i.test(text))result.add(development?'mens_development':'mens_squad');
       if(/\bWA\b/i.test(text))result.add(development?'womens_development':'womens_squad');
-      if(/\bdev\b/i.test(text)&&!development)review.push('“Dev” is not mapped to Development: '+text);
       if(!/gymini|advanced|recreational|\bMA\b|\bWA\b|coach|manager|director/i.test(text)&&!/^\w+day\b/i.test(text))unmapped.push('Unmapped entry: '+text);
     }
     // Class keywords can occur anywhere in the field; dates and notes are not separate enrolments.

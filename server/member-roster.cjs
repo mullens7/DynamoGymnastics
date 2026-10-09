@@ -50,8 +50,7 @@ function prepareRoster(workbook,mapping,report={}){
   const email=value('email').toLowerCase();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new RosterError('INVALID_ROSTER');
   const timeClass=value('timeClass'),rule=classify(timeClass);
-  // Unknown labels grant no benefits. Ambiguous squad abbreviations still require a decision.
-  if(rule.review.some(item=>item.startsWith('“Dev”')))throw new RosterError('ROSTER_REVIEW_REQUIRED',[{row:row.number,label:timeClass.slice(0,200)}]);
+  // Unknown labels grant no member or staff benefits.
   if(rule.review.length){report.unmappedRows++;const label=timeClass.slice(0,200);unmapped.set(label,(unmapped.get(label)||0)+1);}
   const active=columns.status?mapping.activeValues.map(normal).includes(normal(value('status'))):rule.groups.length>0||rule.staff;
   let owner=owners.get(email);if(!owner){owner={email,ownerName:value('ownerName'),member:false,staff:false,gymnasts:[]};owners.set(email,owner);}

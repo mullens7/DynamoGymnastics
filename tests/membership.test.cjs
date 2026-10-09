@@ -8,7 +8,9 @@ test('exact tokens, casing, separate classes, abbreviation review',()=>{
  assert.deepEqual(m.classify('Manager, Gymnasium, Water').groups,[]);
  assert.deepEqual(m.classify('wa development, MA Senior 12 Hours').groups,['womens_development','mens_squad']);
  assert.deepEqual(m.classify('Gymini; Boys Advanced Recreational; Recreational').groups,['gymini','advanced','recreational']);
- assert.equal(m.classify('WA Dev Comp 9 Hours').review.length,1);
+ assert.deepEqual(m.classify('WA Dev Comp 9 Hours'),{groups:['womens_development'],staff:false,review:[]});
+ assert.deepEqual(m.classify('MA Dev 5 Hours').groups,['mens_development']);
+ assert.deepEqual(m.classify('WA Devon 9 Hours').groups,['womens_squad']);
 });
 test('owner grouping, staff parent, staff only, inactive and missing IDs',()=>{
  const a=m.accounts([{email:' OWNER@example.invalid ',gymnastId:'1',name:'Child A',timeClass:'Girls Advanced Recreational, Junior Coach',active:true},{email:'owner@example.invalid',gymnastId:'2',name:'Child B',timeClass:'Gymini',active:true},{email:'staff@example.invalid',name:'Staff',timeClass:'Manager',active:true},{email:'inactive@example.invalid',gymnastId:'3',timeClass:'MA Senior',active:false},{email:'unknown@example.invalid',timeClass:'Gymini',active:true}]);
