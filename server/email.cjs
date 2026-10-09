@@ -17,4 +17,8 @@ async function sendEmail({to,subject,text,html},env=process.env,createTransport=
  const config=settings(env),transport=createTransport(config.transport);
  try{const result=await transport.sendMail({from:config.from,to,subject,text,...(html===undefined?{}:{html})});if(!result.accepted?.length)throw new EmailError('EMAIL_RECIPIENT_REJECTED');return {ok:true};}catch(error){if(error instanceof EmailError)throw error;throw safeError(error);}finally{transport.close();}
 }
-module.exports={settings,verifyEmail,sendEmail,EmailError};
+const TEST_RECIPIENT='freddiemullenuk@icloud.com';
+async function sendTestEmail(env=process.env,createTransport=nodemailer.createTransport){
+ return sendEmail({to:TEST_RECIPIENT,subject:'Dynamo Gymnastics — email connection test',text:'Dynamo Gymnastics\n\nThis is a test of the website email connection.\n\nGoogle Workspace is connected to the website. This message was sent using the configured notification sender.\n\nNo member records were changed, and no member emails were sent.\n\nDynamo Gymnastics'},env,createTransport);
+}
+module.exports={settings,verifyEmail,sendEmail,sendTestEmail,TEST_RECIPIENT,EmailError};
