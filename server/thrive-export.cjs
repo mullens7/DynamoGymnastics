@@ -14,6 +14,14 @@ function inspectDownload({filename,data}){
  if(buffer.length<100||buffer.length>MAX_BYTES||(!xlsx&&!xls))throw new SyncError('INVALID_EXPORT','download');
  return {format:xlsx?'xlsx':'xls',bytes:buffer.length,sha256:createHash('sha256').update(buffer).digest('hex')};
 }
+function actionabilityReason(error){
+ const message=String(error?.message||'');
+ if(/intercepts pointer events/i.test(message))return 'covered by another element';
+ if(/element is not enabled|element is disabled/i.test(message))return 'disabled';
+ if(/element is outside of the viewport/i.test(message))return 'outside the visible area';
+ if(/element is not stable/i.test(message))return 'moving or rerendering';
+ return 'not clickable within the time limit';
+}
 async function exportContacts(env,{chromium}={}){
  const config=configuration(env),started=Date.now();let browser,stage='connect',check='browser connection',deadline,page;
  // No traces, screenshots, response bodies, credentials or member files are logged or saved.
@@ -73,16 +81,28 @@ async function exportContacts(env,{chromium}={}){
  try{
   return await Promise.race([task,new Promise((_,reject)=>{deadline=setTimeout(()=>reject(new SyncError('SESSION_TIMEOUT',stage)),110000)})]);
  }catch(error){
+  let diagnostic;
+  if(stage==='download'&&check==='download Excel export'&&page){
+   const reason=actionabilityReason(error);console.info('Thrive export click:',reason);
+   // Only capture the Contacts page after sign-in, mask form fields and member rows.
+   // The protected response holds this image transiently; it is never saved or logged.
+   if(new URL(page.url()).hash.split('?')[0].replace(/\/$/,'')==='#/app/business/crm'){
+    try{
+     const screenshot=await page.screenshot({type:'jpeg',quality:65,timeout:3000,mask:[page.locator('table'),page.locator('[role="rowgroup"]'),page.locator('input'),page.locator('textarea')]});
+     if(screenshot.length<750000)diagnostic={reason,image:screenshot.toString('base64')};
+    }catch{diagnostic={reason};}
+   }
+  }
   if(stage==='contacts'&&page){
    // Only fixed route labels and counts: no page text, contact names or credentials.
    const summary={route:new URL(page.url()).hash.split('?')[0]==='#/app/business/crm'?'contacts':'other',exportTextCount:await page.getByText('Export',{exact:true}).count().catch(()=>0),exportButtonCount:await page.getByRole('button',{name:/export/i}).count().catch(()=>0)};
    console.info('Thrive export controls:',JSON.stringify(summary));
   }
   // Playwright errors may contain credential-bearing connection URLs. Never pass them through.
-  if(error instanceof SyncError){error.check=check;throw error;}
-  if(error?.name==='TimeoutError'){const failure=new SyncError('STEP_TIMEOUT',stage);failure.check=check;throw failure;}
+  if(error instanceof SyncError){error.check=check;error.diagnostic=diagnostic;throw error;}
+  if(error?.name==='TimeoutError'){const failure=new SyncError('STEP_TIMEOUT',stage);failure.check=check;failure.diagnostic=diagnostic;throw failure;}
   if(stage==='connect'&&/Unexpected server response: (401|403)/.test(String(error?.message)))throw new SyncError('BROWSER_CONNECTION_REJECTED',stage);
-  const failure=new SyncError('AUTOMATION_FAILED',stage);failure.check=check;throw failure;
+  const failure=new SyncError('AUTOMATION_FAILED',stage);failure.check=check;failure.diagnostic=diagnostic;throw failure;
  }finally{clearTimeout(deadline);if(browser){let cleanupTimer;try{await Promise.race([browser.close().catch(()=>{}),new Promise(resolve=>{cleanupTimer=setTimeout(resolve,5000)})])}finally{clearTimeout(cleanupTimer)}}}
 }
-module.exports={SyncError,configuration,inspectDownload,exportContacts};
+module.exports={SyncError,configuration,inspectDownload,exportContacts,actionabilityReason};

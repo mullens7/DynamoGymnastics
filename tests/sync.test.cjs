@@ -32,3 +32,10 @@ test('worker follows verified navigation and always closes the remote browser',a
  selected=false;closed=0;actions.length=0;await exportContacts(env,{chromium:{connectOverCDP:async()=>browser}});assert.equal(selected,true);assert.ok(actions.indexOf('Dynamo School Of Gymnastics')<actions.indexOf('Contact management'));assert.equal(closed,1);
  closed=0;page.goto=async()=>{throw new Error('secret error')};await assert.rejects(exportContacts(env,{chromium:{connectOverCDP:async()=>browser}}),{code:'AUTOMATION_FAILED',stage:'login'});assert.equal(closed,1);
 });
+
+test('click failure classification exposes no raw error or contact text',()=>{
+ const {actionabilityReason}=require('../server/thrive-export.cjs');
+ assert.equal(actionabilityReason(new Error('Private contact DOM intercepts pointer events')), 'covered by another element');
+ assert.equal(actionabilityReason(new Error('element is not enabled')), 'disabled');
+ assert.equal(actionabilityReason(new Error('token=secret')), 'not clickable within the time limit');
+});
