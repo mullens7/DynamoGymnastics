@@ -21,9 +21,10 @@ function validate(kind,input){
  const record={name,date:input.date,time:input.time};
  const count=input[kind==='parties'?'guests':'capacity'];if(!Number.isInteger(count)||count<1||count>10000)throw Error('Capacity must be between 1 and 10,000.');
  if(kind==='parties'){
-  if(!['Big gym','Small gym'].includes(input.room)||!['Confirmed','Pending','Cancelled'].includes(input.status))throw Error('Select a valid room and status.');
+  if(!['Big gym','Small gym'].includes(input.room)||!['Confirmed','Pending','Cancelled','Blocked'].includes(input.status))throw Error('Select a valid room and status.');
   for(const key of ['memberPriceCents','nonMemberPriceCents'])if(!Number.isSafeInteger(input[key])||input[key]<0||input[key]>1000000)throw Error('Enter valid member and non-member party prices.');
-  return {...record,guests:count,room:input.room,status:input.status,memberPriceCents:input.memberPriceCents,nonMemberPriceCents:input.nonMemberPriceCents};
+  const blockReason=String(input.blockReason||'').trim();if(blockReason.length>200||(input.status==='Blocked'&&!blockReason))throw Error('Enter a blocking reason of up to 200 characters.');
+  return {...record,guests:count,room:input.room,status:input.status,blockReason:input.status==='Blocked'?blockReason:'',memberPriceCents:input.memberPriceCents,nonMemberPriceCents:input.nonMemberPriceCents};
  }
  for(const key of ['memberPriceCents','nonMemberPriceCents']){if(!Number.isSafeInteger(input[key])||input[key]<0||input[key]>1000000)throw Error('Enter valid member and non-member prices.');record[key]=input[key];}
  if(!['Draft','Published'].includes(input.status)||!['everyone','members','groups'].includes(input.audience))throw Error('Select a valid status and audience.');
