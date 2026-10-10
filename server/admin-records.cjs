@@ -1,13 +1,22 @@
 const {database}=require('./database.cjs');
 const {authorizeAdmin}=require('./admin-auth.cjs');
 const {groups}=require('../public/manage/membership.js');
-const kinds={events:'dynamo_events',parties:'dynamo_parties',payments:'dynamo_transactions',bookings:'dynamo_event_bookings'};
+const kinds={results:'dynamo_results',events:'dynamo_events',parties:'dynamo_parties',payments:'dynamo_transactions',bookings:'dynamo_event_bookings'};
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
 function validate(kind,input){
  if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Enter the record details.');
  const name=typeof input.name==='string'?input.name.trim():'';
  if(!name||name.length>120)throw Error('Enter a name of up to 120 characters.');
  if(!/^\d{4}-\d{2}-\d{2}$/.test(input.date)||new Date(input.date+'T12:00:00Z').toISOString().slice(0,10)!==input.date)throw Error('Enter a valid date.');
+ if(kind==='results'){
+  const description=typeof input.description==='string'?input.description.trim():'';
+  if(description.length>10000)throw Error('Results text must be under 10,000 characters.');
+  const link=typeof input.link==='string'?input.link.trim():'';
+  if(link){let url;try{url=new URL(link);}catch{throw Error('Enter a valid HTTPS results link.');}if(url.protocol!=='https:'||url.username||url.password||link.length>2000)throw Error('Enter a valid HTTPS results link.');}
+  if(!description&&!link)throw Error('Add results text or a results link.');
+  if(!['Draft','Published'].includes(input.status))throw Error('Select a valid status.');
+  return {name,date:input.date,description,link,status:input.status};
+ }
  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.time))throw Error('Enter a valid time.');
  const record={name,date:input.date,time:input.time};
  const count=input[kind==='parties'?'guests':'capacity'];if(!Number.isInteger(count)||count<1||count>10000)throw Error('Capacity must be between 1 and 10,000.');
@@ -31,20 +40,20 @@ function makeRecordsHandler(env=process.env){return async(req,res)=>{
  if(!await authorizeAdmin(req,env))return res.status(401).json({message:'Sign in to management.'});
  const kind=req.query?.kind;if(!Object.hasOwn(kinds,kind))return res.status(400).json({message:'Choose a valid record type.'});
  if(!['GET','POST','PATCH','DELETE'].includes(req.method))return res.status(405).json({message:'Method not allowed.'});
- if(req.method!=='GET'&&!['events','parties'].includes(kind))return res.status(405).json({message:'These records are read only.'});
+ if(req.method!=='GET'&&!['events','parties','results'].includes(kind))return res.status(405).json({message:'These records are read only.'});
  let details;if(['POST','PATCH'].includes(req.method)){try{details=validate(kind,req.body);}catch(e){return res.status(400).json({message:e.message});}}
  if(['PATCH','DELETE'].includes(req.method)&&!uuid(req.query.id))return res.status(400).json({message:'Choose a valid record.'});
  try{
   const config=database(env),url=new URL(config.url+'/rest/v1/'+kinds[kind]);
   if(req.method==='GET'){
    url.searchParams.set('order','created_at.desc');
-   if(['events','parties'].includes(kind)){url.searchParams.set('select','id,details');url.searchParams.set('archived','eq.false');}
+   if(['events','parties','results'].includes(kind)){url.searchParams.set('select','id,details');url.searchParams.set('archived','eq.false');}
    if(kind==='payments')url.searchParams.set('select','id,created_at,amount_pence,status,payment_method,refunded_pence,purchase_id,dynamo_accounts(email,owner_name),dynamo_purchases(details)');
    if(kind==='bookings'){url.searchParams.set('select','id,event_id,status,purchase_id,price_pence,created_at,dynamo_accounts(email,owner_name),dynamo_gymnasts(first_name,last_name),event:dynamo_events(details)');}
-   const records=await all(config,url);if(kind==='bookings'){const partiesUrl=new URL(config.url+'/rest/v1/dynamo_party_bookings?select=id,party_id,status,purchase_id,price_pence,created_at,dynamo_accounts(email,owner_name),dynamo_gymnasts(first_name,last_name),party:dynamo_parties(details)&order=created_at.desc');const partyBookings=await all(config,partiesUrl);return res.status(200).json({records:[...records.map(r=>({...r,kind:'event',session:r.event?.details,event:undefined})),...partyBookings.map(r=>({...r,kind:'party',session:r.party?.details,party:undefined}))]});}return res.status(200).json({records:['events','parties'].includes(kind)?records.map(r=>({...r.details,id:r.id})):records});
+   const records=await all(config,url);if(kind==='bookings'){const partiesUrl=new URL(config.url+'/rest/v1/dynamo_party_bookings?select=id,party_id,status,purchase_id,price_pence,created_at,dynamo_accounts(email,owner_name),dynamo_gymnasts(first_name,last_name),party:dynamo_parties(details)&order=created_at.desc');const partyBookings=await all(config,partiesUrl);return res.status(200).json({records:[...records.map(r=>({...r,kind:'event',session:r.event?.details,event:undefined})),...partyBookings.map(r=>({...r,kind:'party',session:r.party?.details,party:undefined}))]});}return res.status(200).json({records:['events','parties','results'].includes(kind)?records.map(r=>({...r.details,id:r.id})):records});
   }
   if(req.method==='POST'){const rows=await request(config,url,{method:'POST',body:JSON.stringify({details})});return res.status(201).json({record:{...rows[0].details,id:rows[0].id}});}
-  if(req.method==='PATCH'){
+  if(req.method==='PATCH'&&kind!=='results'){
    const bookingUrl=new URL(config.url+'/rest/v1/'+(kind==='parties'?'dynamo_party_bookings':'dynamo_event_bookings'));
    bookingUrl.searchParams.set('select','id');bookingUrl.searchParams.set(kind==='parties'?'party_id':'event_id','eq.'+req.query.id);bookingUrl.searchParams.set('status','eq.Booked');const bookings=await all(config,bookingUrl);
    if(kind==='events'&&bookings.length>details.capacity)return res.status(400).json({message:'Capacity cannot be lower than the number of booked gymnasts.'});
