@@ -1,0 +1,14 @@
+create table if not exists public.dynamo_gallery(id uuid primary key default gen_random_uuid(),src text not null,alt text not null,archived boolean not null default false,created_at timestamptz not null default now());
+alter table public.dynamo_gallery enable row level security;
+revoke all on public.dynamo_gallery from anon,authenticated;
+grant select,insert,update,delete on public.dynamo_gallery to service_role;
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values('dynamo-gallery','dynamo-gallery',true,1500000,array['image/jpeg']) on conflict(id) do nothing;
+insert into public.dynamo_gallery(id,src,alt) values('00000000-0000-4000-8000-000000000001','/assets/a40e78fb149d07ef2a77.jpg','Dynamo gymnastics gallery photo 1') on conflict(id) do nothing;
+insert into public.dynamo_gallery(id,src,alt) values('00000000-0000-4000-8000-000000000002','/assets/ce41dab355a56249368d.jpg','Dynamo gymnastics gallery photo 2') on conflict(id) do nothing;
+insert into public.dynamo_gallery(id,src,alt) values('00000000-0000-4000-8000-000000000003','/assets/a0c8724bbb5c9742d412.jpg','Dynamo gymnastics gallery photo 3') on conflict(id) do nothing;
+insert into public.dynamo_gallery(id,src,alt) values('00000000-0000-4000-8000-000000000004','/assets/ac4b089232989f2bd50b.jpg','Dynamo gymnastics gallery photo 4') on conflict(id) do nothing;
+insert into public.dynamo_gallery(id,src,alt) values('00000000-0000-4000-8000-000000000005','/assets/c1f1fcedf5707fa2799d.jpg','Dynamo gymnastics gallery photo 5') on conflict(id) do nothing;
+insert into public.dynamo_gallery(id,src,alt) values('00000000-0000-4000-8000-000000000006','/assets/af1d32d9d67d81256f25.jpg','Dynamo gymnastics gallery photo 6') on conflict(id) do nothing;
+insert into public.dynamo_gallery(id,src,alt) values('00000000-0000-4000-8000-000000000007','/assets/66949ffd848cf2885224.jpg','Dynamo gymnastics gallery photo 7') on conflict(id) do nothing;
+insert into public.dynamo_gallery(id,src,alt) values('00000000-0000-4000-8000-000000000008','/assets/76b5dfb7b4dc335d960d.jpg','Dynamo gymnastics gallery photo 8') on conflict(id) do nothing;
+insert into public.dynamo_gallery(id,src,alt) values('00000000-0000-4000-8000-000000000009','/assets/eb0110e3dbd0015ca737.jpg','Dynamo gymnastics gallery photo 9') on conflict(id) do nothing;

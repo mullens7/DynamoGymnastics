@@ -13,3 +13,4 @@ html{-webkit-text-size-adjust:100%}body{overflow-wrap:anywhere}main,section,.pan
 
 body{font-family:'DM Sans',Arial,sans-serif}h1,h2,h3{font-family:'Nunito Sans',Arial,sans-serif}p{line-height:1.65}
 dialog textarea{font:inherit;font-size:16px;width:100%;max-width:100%;min-height:160px;padding:12px;border:1px solid #dce3ec;border-radius:6px;resize:vertical;outline-offset:4px}
+.gallery-upload{margin:0;cursor:pointer;font-weight:normal}.admin-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px;margin-top:20px}.admin-gallery article{border:1px solid #dce3ec;background:white;border-radius:10px;overflow:hidden;padding-bottom:12px}.admin-gallery img{width:100%;height:180px;object-fit:cover;display:block}.admin-gallery button{margin:12px 12px 0;max-width:calc(100% - 24px)}#gallery-status{margin-block:12px}
