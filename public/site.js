@@ -6,7 +6,5 @@
  nav.addEventListener('click',event=>{if(event.target.closest('a'))close();});
  document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(legal.open){legal.open=false;legal.querySelector('summary').focus();}else{close();toggle.focus();}}});
  document.addEventListener('click',event=>{if(!event.target.closest('.legal-menu'))legal.open=false;if(!event.target.closest('.site-header'))close();});
- const form=document.querySelector('#contact-form');
- if(form)form.addEventListener('submit',event=>{event.preventDefault();const data=new FormData(form);location.href='mailto:admin@dynamogymnastics.co.uk?subject='+encodeURIComponent('Website enquiry: '+data.get('first')+' '+data.get('last'))+'&body='+encodeURIComponent('Gymnast: '+data.get('first')+' '+data.get('last')+'\n\n'+data.get('message'));});
  fetch('/api/login/',{credentials:'same-origin',cache:'no-store',redirect:'error'}).then(response=>{if(response.ok)document.querySelectorAll('[data-account-link]').forEach(link=>{link.textContent='My account';link.href='/account/';});}).catch(()=>{});
 })();

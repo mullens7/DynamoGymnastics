@@ -12,10 +12,10 @@ async function verifyEmail(env=process.env,createTransport=nodemailer.createTran
  try{await transport.verify();return {ok:true,smtpAuthenticated:true,emailSent:false};}catch(error){throw safeError(error);}finally{transport.close();}
 }
 // Server-only primitive. No public endpoint accepts arbitrary recipients or content.
-async function sendEmail({to,subject,text,html},env=process.env,createTransport=nodemailer.createTransport){
- if(!address(to)||typeof subject!=='string'||!subject.trim()||subject.length>200||/[\r\n]/.test(subject)||typeof text!=='string'||!text||text.length>100000||(html!==undefined&&(typeof html!=='string'||html.length>200000)))throw new EmailError('EMAIL_INVALID_MESSAGE');
+async function sendEmail({to,subject,text,html,replyTo},env=process.env,createTransport=nodemailer.createTransport){
+ if((replyTo!==undefined&&!address(replyTo))||!address(to)||typeof subject!=='string'||!subject.trim()||subject.length>200||/[\r\n]/.test(subject)||typeof text!=='string'||!text||text.length>100000||(html!==undefined&&(typeof html!=='string'||html.length>200000)))throw new EmailError('EMAIL_INVALID_MESSAGE');
  const config=settings(env),transport=createTransport(config.transport);
- try{const result=await transport.sendMail({from:config.from,to,subject,text,...(html===undefined?{}:{html})});if(!result.accepted?.length)throw new EmailError('EMAIL_RECIPIENT_REJECTED');return {ok:true};}catch(error){if(error instanceof EmailError)throw error;throw safeError(error);}finally{transport.close();}
+ try{const result=await transport.sendMail({from:config.from,to,subject,text,...(replyTo?{replyTo}:{}),...(html===undefined?{}:{html})});if(!result.accepted?.length)throw new EmailError('EMAIL_RECIPIENT_REJECTED');return {ok:true};}catch(error){if(error instanceof EmailError)throw error;throw safeError(error);}finally{transport.close();}
 }
 const TEST_RECIPIENT='freddiemullenuk@icloud.com';
 async function sendTestEmail(env=process.env,createTransport=nodemailer.createTransport){
