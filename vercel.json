@@ -22,5 +22,12 @@
     "api/admin-operations.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/octoberhalfterm/:path*",
+      "destination": "/events/",
+      "permanent": true
+    }
+  ]
 }
