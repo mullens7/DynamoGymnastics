@@ -1,0 +1,6 @@
+.code-label{margin:16px 0 8px;font-weight:600;color:#25364b}
+.otp-boxes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:12px 0 18px}
+.otp-boxes .otp-digit{width:100%;min-width:0;height:64px;padding:8px;text-align:center;font-size:30px;font-weight:700;border:1px solid #cbd8e7;border-radius:10px;background:white;color:#1656a4;caret-color:#1656a4}
+.otp-digit:focus{outline:2px solid #1656a4;outline-offset:2px}
+#resend:disabled{cursor:default;opacity:.65}
+@media(max-width:360px){.otp-boxes{gap:8px}.otp-boxes .otp-digit{height:56px;font-size:26px}}
