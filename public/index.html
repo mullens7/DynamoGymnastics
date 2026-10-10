@@ -1,5 +1,18 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#19569b"><meta name="description" content="Dynamo School of Gymnastics. Classes, holiday activities and birthday parties in Hamble."><title>Home | Dynamo Gymnastics</title><link rel="stylesheet" href="/site.css"><script src="/site.js" defer></script><style>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#19569b"><meta name="description" content="Dynamo School of Gymnastics. Classes, holiday activities and birthday parties in Hamble."><title>Home | Dynamo Gymnastics</title><link rel="stylesheet" href="/site.css"><script src="/site.js" defer></script><script>
+(function(){
+  var seen=false;
+  try{
+    seen=sessionStorage.getItem('dynamo-welcome-seen')==='1';
+    sessionStorage.setItem('dynamo-welcome-seen','1');
+  }catch(e){}
+  var navigation=performance.getEntriesByType('navigation')[0];
+  if(seen || (navigation && navigation.type==='reload')){
+    document.documentElement.classList.add('welcome-skipped');
+  }
+})();
+</script><style>
 .welcome-screen{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:#1656a4;color:#fff;animation:welcome-away .45s ease 2.45s forwards}
+.welcome-skipped .welcome-screen{display:none}
 .welcome-content{display:flex;flex-direction:column;align-items:center;gap:24px;padding:20px;width:100%;text-align:center}
 .welcome-type{display:block;width:0;max-width:100%;overflow:hidden;white-space:nowrap;font:600 clamp(30px,8vw,110px)/1.15 monospace;letter-spacing:.08em;border-right:2px solid white;animation:welcome-type .55s steps(10,end) .1s forwards,welcome-cursor .4s step-end 4 forwards}
 .welcome-logo{width:min(380px,75vw);height:auto;object-fit:contain;opacity:0;transform:translateY(8px);animation:welcome-logo .45s ease 1.45s forwards}
