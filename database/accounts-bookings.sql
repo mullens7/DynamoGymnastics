@@ -1,5 +1,5 @@
 -- Private server-side OTP sessions, wallet ledger and booking operations.
-create table public.dynamo_login_codes(id uuid primary key,email text not null,ip_hash text not null,code_hash text not null,attempts integer not null default 0,consumed boolean not null default false,created_at timestamptz not null default now(),expires_at timestamptz not null default now()+interval '10 minutes');
+create table public.dynamo_login_codes(id uuid primary key,email text not null,ip_hash text not null,code_hash text not null,attempts integer not null default 0,consumed boolean not null default false,created_at timestamptz not null default now(),expires_at timestamptz not null default now()+interval '15 minutes');
 create index dynamo_login_codes_email_time on public.dynamo_login_codes(email,created_at);
 create index dynamo_login_codes_ip_time on public.dynamo_login_codes(ip_hash,created_at);
 create table public.dynamo_user_sessions(token_hash text primary key,account_id uuid not null references public.dynamo_accounts(id),created_at timestamptz not null default now(),expires_at timestamptz not null default now()+interval '12 hours');

@@ -3,6 +3,7 @@ const {sameOrigin}=require('./admin-auth.cjs');
 const {currentUser,cookie,hash,signOut}=require('./user-auth.cjs');
 const {rpc,store}=require('./store.cjs');
 const {sendEmail}=require('./email.cjs');
+const {verificationEmail}=require('./email-template.cjs');
 const {isWebsiteAdmin}=require('./roles.cjs');
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
 const email=value=>typeof value==='string'&&value.length<=254&&/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(value);
@@ -20,9 +21,9 @@ function makeLoginHandler(env=process.env,services={rpc,store,sendEmail,currentU
   const ip=String(req.headers['x-vercel-forwarded-for']||req.headers['x-real-ip']||req.socket?.remoteAddress||'unknown').split(',')[0].trim();
   const result=await services.rpc(env,'request_dynamo_code',{p_id:id,p_email:address,p_ip:digest(env,'ip:'+ip),p_hash:digest(env,id+':'+code)});
   if(!result.ok)return res.status(429).json({message:'Please wait before requesting another code. You can request up to five codes per hour.'});
-  try{await services.sendEmail({to:address,subject:'Your Dynamo Gymnastics login code',text:`Your Dynamo Gymnastics login code is ${code}.\n\nIt expires in 10 minutes. Do not share this code with anyone.\n\nIf you did not request it, you can ignore this email.`,html:`<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#25364b"><h2>Dynamo Gymnastics</h2><p>Your login code is:</p><p style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#19569b">${code}</p><p>Enter it on the Dynamo website. It expires in 10 minutes.</p><p>Do not share this code. If you did not request it, you can ignore this email.</p></div>`},env);}
+  try{await services.sendEmail({to:address,...verificationEmail(code)},env);}
   catch{await services.store(env,'dynamo_login_codes?id=eq.'+id,{method:'PATCH',body:JSON.stringify({consumed:true})});throw Error('EMAIL_DELIVERY_FAILED');}
-  return res.status(200).json({challengeId:id,expiresIn:600});
+  return res.status(200).json({challengeId:id,expiresIn:900});
  }
  if(req.body?.action==='verify'){
   const {challengeId,code}=req.body;if(!uuid(challengeId)||!/^\d{4}$/.test(code||''))return res.status(400).json({message:'Enter the four-digit code.'});
