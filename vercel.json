@@ -33,7 +33,7 @@
   "rewrites": [
     {
       "source": "/events/:slug/",
-      "destination": "/events/detail.html"
+      "destination": "/events/detail/"
     }
   ]
 }
