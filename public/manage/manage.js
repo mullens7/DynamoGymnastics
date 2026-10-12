@@ -54,3 +54,5 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  const a=b.dataset.action;if(a==='close')$('#dialog').close();if(a==='refresh')loadData();if(a==='signout'){try{await api('/api/admin-session/',{method:'DELETE'});signedIn=false;loaded=false;data={contacts:[],results:[],events:[],parties:[],payments:[],bookings:[]};location.assign('/auth/');}catch(e){toast(e.message);}}
  if(!signedIn||!loaded)return;if(a==='new-result')resultEditor();if(a==='new-event')editor();if(a==='bulk-party')bulkPartyEditor();if(a==='block-parties')blockPartyEditor();if(a==='new-party')editor(null,true);if(a==='prev'||a==='next'){month.setMonth(month.getMonth()+(a==='next'?1:-1));render();}if(a==='today'){month=new Date();month.setDate(1);render();}
 });bootstrap();
+
+fetch('/api/login/',{credentials:'same-origin',cache:'no-store',redirect:'error'}).then(async response=>{if(!response.ok)return;const {user}=await response.json();document.querySelectorAll('[data-staff-nav]').forEach(link=>link.hidden=!(user.roster_staff||user.websiteAdmin));}).catch(()=>{});
