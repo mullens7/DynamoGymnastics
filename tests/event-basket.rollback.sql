@@ -12,6 +12,8 @@ do $$ declare a uuid:=gen_random_uuid(); g7 uuid:=gen_random_uuid();g11 uuid:=ge
  begin perform public.checkout_dynamo_basket(a,jsonb_build_array(jsonb_build_object('kind','event','targetId',s1,'gymnastId',gOther)),true,op,700);raise exception 'foreign profile accepted';exception when others then if sqlerrm<>'GYMNAST_NOT_FOUND' then raise;end if;end;
  items:=jsonb_build_array(jsonb_build_object('kind','event','targetId',s1,'gymnastId',g7),jsonb_build_object('kind','event','targetId',s2,'gymnastId',g11));
  begin perform public.checkout_dynamo_basket(a,items,true,op,1);raise exception 'unconfirmed price accepted';exception when others then if sqlerrm<>'PRICE_CHANGED' then raise;end if;end;
+ begin perform public.checkout_dynamo_basket(a,jsonb_build_array(jsonb_build_object('kind','event','targetId',s1,'gymnastId',g7),jsonb_build_object('kind','event','targetId',s1,'gymnastId',g7)),true,gen_random_uuid(),1400);raise exception 'duplicate basket accepted';exception when others then if sqlerrm<>'ALREADY_BOOKED' then raise;end if;end;
+ if (select wallet_pence from public.dynamo_accounts where id=a)<>5000 then raise exception 'duplicate basket partially charged';end if;
  result:=public.checkout_dynamo_basket(a,items,true,op,1400);perform public.checkout_dynamo_basket(a,items,true,op,1400);
  if (select wallet_pence from public.dynamo_accounts where id=a)<>3600 or (select count(*) from public.dynamo_event_bookings where account_id=a)<>2 then raise exception 'retry double charged';end if;
  begin perform public.save_dynamo_event(e,jsonb_set(body,'{sessions,0,capacity}','0'),false);raise exception 'capacity reduced';exception when others then if sqlerrm<>'EVENT_CAPACITY_TOO_LOW' then raise;end if;end;

@@ -6,7 +6,7 @@
  function enhance(input){if(input.dataset.ukDateReady)return;input.dataset.ukDateReady='true';
   const wrapper=document.createElement('span');wrapper.className='uk-date-field';input.before(wrapper);
   const text=document.createElement('input');text.type='text';text.inputMode='numeric';text.placeholder='dd/mm/yyyy';text.maxLength=10;text.autocomplete='off';text.className='uk-date-text';text.id=(input.id||'uk-date-'+Math.random().toString(36).slice(2))+'-display';text.setAttribute('aria-label',input.getAttribute('aria-label')||'Date (dd/mm/yyyy)');
-  const labels=[...document.querySelectorAll('label')].filter(label=>label.htmlFor===input.id);for(const label of labels){label.htmlFor=text.id;text.removeAttribute('aria-label');}
+  const labels=[...document.querySelectorAll('label')].filter(label=>input.id&&label.htmlFor===input.id);for(const label of labels){label.htmlFor=text.id;text.removeAttribute('aria-label');}
   const button=document.createElement('button');button.type='button';button.className='uk-date-calendar';button.setAttribute('aria-label','Choose date');button.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18"/></svg>';
   input.classList.add('uk-date-source');input.tabIndex=-1;input.setAttribute('aria-hidden','true');wrapper.append(text,button,input);
   const descriptor=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
