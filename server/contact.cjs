@@ -20,7 +20,7 @@ function makeContactHandler(env=process.env,services={rpc,sendEmail}){return asy
   const key=createHmac('sha256',env.SYNC_TEST_KEY).update('contact:'+ip).digest('hex');
   const allowed=await services.rpc(env,'limit_dynamo_contact',{p_key:key});
   if(!allowed)return res.status(429).json({message:'Too many messages. Please try again later, or email or call us.'});
-  await services.sendEmail({to:'admin@dynamogymnastics.co.uk',subject:'Website enquiry',replyTo:input.email,text:`Adult: ${input.first} ${input.last}\nEmail: ${input.email}\nPhone: ${input.phone}\n\n${input.message}`},env);
+  await services.sendEmail({to:'admin@dynamogymnastics.co.uk',subject:`${input.first} has an enquiry`,replyTo:input.email,text:`Hi Dynamo,\n\nPlease see ${input.first}'s enquiry below. Reply directly to this email to respond.\n\nName: ${input.first} ${input.last}\nEmail: ${input.email}\nPhone: ${input.phone}\n\nEnquiry:\n${input.message}`},env);
   return res.status(200).json({ok:true});
  }catch{return res.status(503).json({message:'Your message could not be sent. Please email or call the team.'});}
 };}
