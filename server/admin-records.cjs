@@ -4,6 +4,7 @@ const {groups}=require('../public/manage/membership.js');
 const kinds={results:'dynamo_results',events:'dynamo_events',parties:'dynamo_parties',payments:'dynamo_transactions',bookings:'dynamo_event_bookings'};
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
 function validate(kind,input){
+ if(kind==='events')return require('./event-model.cjs').validateEvent(input||{});
  if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Enter the record details.');
  const name=typeof input.name==='string'?input.name.trim():'';
  if(!name||name.length>120)throw Error('Enter a name of up to 120 characters.');
@@ -48,11 +49,12 @@ function makeRecordsHandler(env=process.env){return async(req,res)=>{
   const config=database(env),url=new URL(config.url+'/rest/v1/'+kinds[kind]);
   if(req.method==='GET'){
    url.searchParams.set('order','created_at.desc');
-   if(['events','parties','results'].includes(kind)){url.searchParams.set('select','id,details');url.searchParams.set('archived','eq.false');}
+   if(['events','parties','results'].includes(kind)){url.searchParams.set('select','id,details');url.searchParams.set('archived','eq.false');if(kind==='events')url.searchParams.set('details->>parentId','is.null');}
    if(kind==='payments')url.searchParams.set('select','id,created_at,amount_pence,status,payment_method,refunded_pence,purchase_id,dynamo_accounts(email,owner_name),dynamo_purchases(details)');
    if(kind==='bookings'){url.searchParams.set('select','id,event_id,status,purchase_id,price_pence,created_at,dynamo_accounts(email,owner_name),dynamo_gymnasts(first_name,last_name),event:dynamo_events(details)');}
    const records=await all(config,url);if(kind==='bookings'){const partiesUrl=new URL(config.url+'/rest/v1/dynamo_party_bookings?select=id,party_id,status,purchase_id,price_pence,created_at,dynamo_accounts(email,owner_name),dynamo_gymnasts(first_name,last_name),party:dynamo_parties(details)&order=created_at.desc');const partyBookings=await all(config,partiesUrl);return res.status(200).json({records:[...records.map(r=>({...r,kind:'event',session:r.event?.details,event:undefined})),...partyBookings.map(r=>({...r,kind:'party',session:r.party?.details,party:undefined}))]});}return res.status(200).json({records:['events','parties','results'].includes(kind)?records.map(r=>({...r.details,id:r.id})):records});
   }
+  if(kind==='events'){const result=await require('./store.cjs').rpc(env,'save_dynamo_event',{p_id:req.method==='POST'?null:req.query.id,p_details:details||null,p_archive:req.method==='DELETE'});return res.status(req.method==='POST'?201:200).json(req.method==='DELETE'?{archived:true}:{record:result});}
   if(req.method==='POST'){const rows=await request(config,url,{method:'POST',body:JSON.stringify({details})});return res.status(201).json({record:{...rows[0].details,id:rows[0].id}});}
   if(req.method==='PATCH'&&kind!=='results'){
    const bookingUrl=new URL(config.url+'/rest/v1/'+(kind==='parties'?'dynamo_party_bookings':'dynamo_event_bookings'));
@@ -64,6 +66,6 @@ function makeRecordsHandler(env=process.env){return async(req,res)=>{
   const rows=await request(config,url,{method:'PATCH',body:JSON.stringify(req.method==='DELETE'?{archived:true}:{details})});
   if(!rows.length)return res.status(404).json({message:'The record is no longer available.'});
   return res.status(200).json(req.method==='DELETE'?{archived:true}:{record:{...rows[0].details,id:rows[0].id}});
- }catch{return res.status(502).json({message:'The records could not be saved or loaded. Please try again.'});}
+ }catch(e){if(['EVENT_SLUG_TAKEN','EVENT_SESSION_BOOKED','EVENT_CAPACITY_TOO_LOW'].includes(e.code))return res.status(400).json({message:{EVENT_SLUG_TAKEN:'That event link is already used. Choose another.',EVENT_SESSION_BOOKED:'A booked session cannot be removed or have its date, time or age range changed. Manage its bookings first.',EVENT_CAPACITY_TOO_LOW:'Session capacity cannot be below existing bookings.'}[e.code]});return res.status(502).json({message:'The records could not be saved or loaded. Please try again.'});}
 };}
 module.exports={makeRecordsHandler,validate};

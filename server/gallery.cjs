@@ -18,6 +18,7 @@ function makeGalleryHandler(env=process.env,services={store,all,authorizeAdmin})
   const response=await fetch(config.url+'/storage/v1/object/dynamo-gallery/'+path,{method:'POST',headers:{...config.headers,'Content-Type':'image/jpeg','x-upsert':'false'},body:bytes,redirect:'error',signal:AbortSignal.timeout(30000)});
   if(!response.ok)throw Error();
   const src=config.url+'/storage/v1/object/public/dynamo-gallery/'+path;
+  if(req.query?.kind==='event-image')return res.status(201).json({src});
   try{const rows=await services.store(env,'dynamo_gallery',{method:'POST',body:JSON.stringify({id,src,alt:'Dynamo Gymnastics gallery photo'})});return res.status(201).json({record:rows[0]});}
   catch(error){await fetch(config.url+'/storage/v1/object/dynamo-gallery/'+path,{method:'DELETE',headers:config.headers,signal:AbortSignal.timeout(10000)}).catch(()=>{});throw error;}
  }catch{return res.status(502).json({message:'The gallery could not be updated. Please try again.'});}

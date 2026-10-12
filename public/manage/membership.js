@@ -46,6 +46,7 @@
     if(!Number.isSafeInteger(n))throw new Error('Price is too large.');return n;
   }
   function eligible(event,account,gymnastId){
+    const profile=account?.gymnasts?.find(g=>g.id===gymnastId);if(event.minAge!=null||event.maxAge!=null){const dob=profile?.date_of_birth;if(!/^\d{4}-\d{2}-\d{2}$/.test(dob||'')||!event.date)return false;const age=Number(event.date.slice(0,4))-Number(dob.slice(0,4))-(event.date.slice(5)<dob.slice(5)?1:0);if(age<0||(event.minAge!=null&&age<event.minAge)||(event.maxAge!=null&&age>event.maxAge))return false;}
     if(event.audience==='everyone')return true;
     const g=account?.gymnasts?.find(g=>g.id===gymnastId&&g.active);
     if(!g)return false;

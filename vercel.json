@@ -29,5 +29,11 @@
       "destination": "/events/",
       "permanent": true
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/events/:slug/",
+      "destination": "/events/detail.html"
+    }
   ]
 }

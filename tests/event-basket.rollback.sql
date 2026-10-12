@@ -1,0 +1,21 @@
+begin;
+set local role service_role;
+do $$ declare a uuid:=gen_random_uuid(); g7 uuid:=gen_random_uuid();g11 uuid:=gen_random_uuid();gOther uuid:=gen_random_uuid();other uuid:=gen_random_uuid();e uuid; s1 uuid:=gen_random_uuid();s2 uuid:=gen_random_uuid();op uuid:=gen_random_uuid();body jsonb;result jsonb;items jsonb;begin
+ insert into public.dynamo_accounts(id,email,wallet_pence) values(a,'basket-test-'||a||'@example.invalid',5000),(other,'basket-other-'||other||'@example.invalid',0);
+ insert into public.dynamo_gymnasts(id,account_id,source_id,first_name,last_name,date_of_birth,groups,active) values(g7,a,'manual:'||g7,'Test','Seven','2023-01-01','{}',false),(g11,a,'manual:'||g11,'Test','Eleven','2019-01-01','{}',false),(gOther,other,'manual:'||gOther,'Test','Other','2023-01-01','{}',false);
+ body:=jsonb_build_object('name','Basket fixture','slug','basket-fixture-'||left(a::text,8),'date','2030-02-01','time','10:00','capacity',4,'memberPriceCents',500,'nonMemberPriceCents',700,'audience','everyone','allowedGroups','[]'::jsonb,'status','Published','sessions',jsonb_build_array(jsonb_build_object('id',s1,'date','2030-02-01','time','10:00','capacity',2,'minAge',0,'maxAge',8),jsonb_build_object('id',s2,'date','2030-02-02','time','10:00','capacity',2,'minAge',0,'maxAge',11)));
+ result:=public.save_dynamo_event(null,body,false);e:=(result->>'id')::uuid;
+ begin perform public.save_dynamo_event(null,body,false);raise exception 'duplicate URL accepted';exception when others then if sqlerrm<>'EVENT_SLUG_TAKEN' then raise;end if;end;
+ items:=jsonb_build_array(jsonb_build_object('kind','event','targetId',s1,'gymnastId',g7),jsonb_build_object('kind','event','targetId',s1,'gymnastId',g11));
+ begin perform public.checkout_dynamo_basket(a,items,true,op,1400);raise exception 'older child accepted';exception when others then if sqlerrm<>'AGE_INELIGIBLE' then raise;end if;end;
+ if (select wallet_pence from public.dynamo_accounts where id=a)<>5000 or exists(select 1 from public.dynamo_event_bookings where account_id=a) then raise exception 'partial checkout persisted';end if;
+ begin perform public.checkout_dynamo_basket(a,jsonb_build_array(jsonb_build_object('kind','event','targetId',s1,'gymnastId',gOther)),true,op,700);raise exception 'foreign profile accepted';exception when others then if sqlerrm<>'GYMNAST_NOT_FOUND' then raise;end if;end;
+ items:=jsonb_build_array(jsonb_build_object('kind','event','targetId',s1,'gymnastId',g7),jsonb_build_object('kind','event','targetId',s2,'gymnastId',g11));
+ begin perform public.checkout_dynamo_basket(a,items,true,op,1);raise exception 'unconfirmed price accepted';exception when others then if sqlerrm<>'PRICE_CHANGED' then raise;end if;end;
+ result:=public.checkout_dynamo_basket(a,items,true,op,1400);perform public.checkout_dynamo_basket(a,items,true,op,1400);
+ if (select wallet_pence from public.dynamo_accounts where id=a)<>3600 or (select count(*) from public.dynamo_event_bookings where account_id=a)<>2 then raise exception 'retry double charged';end if;
+ begin perform public.save_dynamo_event(e,jsonb_set(body,'{sessions,0,capacity}','0'),false);raise exception 'capacity reduced';exception when others then if sqlerrm<>'EVENT_CAPACITY_TOO_LOW' then raise;end if;end;
+ begin perform public.save_dynamo_event(e,jsonb_set(body,'{sessions,0,maxAge}','7'),false);raise exception 'booked age changed';exception when others then if sqlerrm<>'EVENT_SESSION_BOOKED' then raise;end if;end;
+ perform public.save_dynamo_event(e,null,true);if exists(select 1 from public.dynamo_events where details->>'parentId'=e::text and not archived) then raise exception 'deleted listing sessions remained';end if;
+end $$;
+rollback;

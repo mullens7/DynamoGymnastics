@@ -25,7 +25,7 @@ test('sign in issues only an HttpOnly secure cookie and sign out clears it',asyn
  const out=res();await handler({...request,method:'DELETE'},out);assert.equal(out.headers['Set-Cookie'].length,2);for(const value of out.headers['Set-Cookie'])assert.match(value,/Max-Age=0/);
 });
 test('record validation enforces trusted prices, groups, dates and limits',()=>{
- assert.deepEqual(validate('events',{...event,unknown:'ignored'}),event);
+ const validated=validate('events',{...event,unknown:'ignored'});assert.equal(validated.unknown,undefined);assert.equal(validated.memberPriceCents,event.memberPriceCents);assert.deepEqual(validated.allowedGroups,event.allowedGroups);assert.equal(validated.sessions[0].capacity,30);assert.equal(validated.slug,'holiday-activity');
  for(const changed of [{capacity:0},{memberPriceCents:-1},{memberPriceCents:1.5},{allowedGroups:['invented']},{date:'2026-02-30'},{time:'25:00'},{audience:'groups',allowedGroups:[]}])assert.throws(()=>validate('events',{...event,...changed}));
  assert.deepEqual(validate('parties',{name:'Birthday',date:'2026-10-27',time:'14:00',guests:20,room:'Big gym',status:'Confirmed',memberPriceCents:1000,nonMemberPriceCents:1500}).guests,20);
 });
@@ -36,8 +36,8 @@ test('unauthenticated writes and payments mutations never contact storage',async
 });
 test('event saves return database IDs; deletes archive without erasing history',async()=>{
  const original=global.fetch,calls=[];const id='00000000-0000-4000-8000-000000000001';
- global.fetch=async(url,options)=>{calls.push({url:String(url),options});return {ok:true,status:200,json:async()=>[{id,details:event}]};};
+ global.fetch=async(url,options)=>{calls.push({url:String(url),options});return {ok:true,status:200,json:async()=>({...event,id})};};
  try{const handler=makeRecordsHandler(env),create=req('POST');create.body=event;const saved=res();await handler(create,saved);assert.equal(saved.code,201);assert.equal(saved.body.record.id,id);
- const remove=req('DELETE');remove.query.id=id;const removed=res();await handler(remove,removed);assert.equal(removed.code,200);assert.equal(calls[1].options.method,'PATCH');assert.deepEqual(JSON.parse(calls[1].options.body),{archived:true});assert.match(calls[1].url,/id=eq/);assert.equal(calls.every(c=>!c.url.includes('dynamo_accounts')&&!c.url.includes('dynamo_transactions')),true);
+ const remove=req('DELETE');remove.query.id=id;const removed=res();await handler(remove,removed);assert.equal(removed.code,200);assert.equal(calls[1].options.method,'POST');assert.deepEqual(JSON.parse(calls[1].options.body),{p_id:id,p_details:null,p_archive:true});assert.match(calls[1].url,/rpc\/save_dynamo_event/);assert.equal(calls.every(c=>!c.url.includes('dynamo_accounts')&&!c.url.includes('dynamo_transactions')),true);
  }finally{global.fetch=original;}
 });
