@@ -16,6 +16,7 @@ do $$ declare a uuid:=gen_random_uuid(); g7 uuid:=gen_random_uuid();g11 uuid:=ge
  if (select wallet_pence from public.dynamo_accounts where id=a)<>5000 then raise exception 'duplicate basket partially charged';end if;
  result:=public.checkout_dynamo_basket(a,items,true,op,1400);perform public.checkout_dynamo_basket(a,items,true,op,1400);
  if (select wallet_pence from public.dynamo_accounts where id=a)<>3600 or (select count(*) from public.dynamo_event_bookings where account_id=a)<>2 then raise exception 'retry double charged';end if;
+ begin perform public.manage_dynamo_booking('event',(select id from public.dynamo_event_bookings where account_id=a and gymnast_id=g11),a,'move',s1,null,null,gen_random_uuid());raise exception 'age-ineligible move accepted';exception when others then if sqlerrm<>'AGE_INELIGIBLE' then raise;end if;end;
  begin perform public.save_dynamo_event(e,jsonb_set(body,'{sessions,0,capacity}','0'),false);raise exception 'capacity reduced';exception when others then if sqlerrm<>'EVENT_CAPACITY_TOO_LOW' then raise;end if;end;
  begin perform public.save_dynamo_event(e,jsonb_set(body,'{sessions,0,maxAge}','7'),false);raise exception 'booked age changed';exception when others then if sqlerrm<>'EVENT_SESSION_BOOKED' then raise;end if;end;
  perform public.save_dynamo_event(e,null,true);if exists(select 1 from public.dynamo_events where details->>'parentId'=e::text and not archived) then raise exception 'deleted listing sessions remained';end if;
