@@ -1,4 +1,4 @@
-const displayDate=value=>value?new Date(value+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}):'';
+const displayDate=value=>value?DynamoDates.format(value):'';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),money=p=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(p/100);let account;
 async function api(options){const response=await fetch('/api/account/',{...options,credentials:'same-origin',cache:'no-store',redirect:'error',headers:{'Content-Type':'application/json'}});if(response.status===401){location.replace('/auth/?next='+encodeURIComponent('/book/'+location.search));throw Error('Please log in.');}const data=await response.json();if(!response.ok)throw Error(data.message||'Please try again.');return data;}
 async function load(){try{account=await api();render();}catch(error){$('#content').textContent=error.message;}}

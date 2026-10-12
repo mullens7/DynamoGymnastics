@@ -6,7 +6,7 @@
   for(const r of records){
    const card=document.createElement('article');card.className='card';
    const heading=document.createElement('h2');heading.textContent=r.name;
-   const date=document.createElement('p');date.className='eyebrow';date.textContent=new Date(r.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+   const date=document.createElement('p');date.className='eyebrow';date.textContent=DynamoDates.format(r.date);
    card.append(date,heading);
    if(r.description){const text=document.createElement('p');text.style.whiteSpace='pre-wrap';text.style.overflowWrap='anywhere';text.textContent=r.description;card.append(text);}
    if(r.link){const url=new URL(r.link);if(url.protocol==='https:'&&!url.username&&!url.password){const a=document.createElement('a');a.className='text-link';a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent='View full results ↗';card.append(a);}}
