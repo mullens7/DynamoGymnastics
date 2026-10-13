@@ -12,3 +12,14 @@
 .header-basket{display:flex;align-items:center;justify-content:center;min-width:36px;min-height:42px;border:1px solid #ffffff45;border-radius:8px}@media(max-width:420px){.site-header.member-header .brand img{width:100px}.site-header.member-header .container{width:calc(100% - 20px)}.header-basket{min-width:32px}.site-header .header-wallet{padding:7px 5px;font-size:12px;gap:3px}.member-tools{gap:4px}.site-header .header-wallet .wallet-balance{max-width:55px}}@media(max-width:340px){.site-header.member-header .brand img{width:78px}}
 
 .header-basket{position:relative}.basket-count{position:absolute;top:-6px;right:-5px;border-radius:12px;min-width:18px;height:18px;padding:2px 4px;background:white;color:#1656a4;font-size:11px;font-weight:700;text-align:center;line-height:14px}
+
+/* Desktop navigation fills a second row beneath the logo and account tools. */
+@media(min-width:1101px){
+ .site-header .header-inner,.site-header.member-header .header-inner{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:64px 44px;gap:0 20px;min-height:112px;padding:4px 0 0}
+ .site-header .brand{grid-column:1;grid-row:1;justify-self:start}
+ .site-header .header-actions{grid-column:2;grid-row:1;justify-self:end}
+ .site-header nav{grid-column:1 / -1;grid-row:2;justify-content:space-between;width:100%;min-width:0;gap:10px;align-self:stretch;align-items:center}
+ .site-header nav>a,.site-header .legal-menu summary{padding-block:10px;min-height:44px}
+ html{scroll-padding-top:136px}
+ .account-main [id],.class-section{scroll-margin-top:136px}
+}
