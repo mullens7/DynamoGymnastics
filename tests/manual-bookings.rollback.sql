@@ -1,0 +1,37 @@
+begin;
+do $test$
+declare actor uuid:=gen_random_uuid();owner uuid:=gen_random_uuid();gym uuid:=gen_random_uuid();parent uuid:=gen_random_uuid();s1 uuid:=gen_random_uuid();s2 uuid:=gen_random_uuid();s3 uuid:=gen_random_uuid();s4 uuid:=gen_random_uuid();option_id uuid:=gen_random_uuid();op uuid:=gen_random_uuid();fields jsonb:='[{"id":"parent-led","type":"acknowledgement","label":"Parent-led acknowledgement","required":true,"options":[]},{"id":"emergency","type":"phone","label":"Emergency contact number","required":true,"options":[]}]';cfg jsonb;input jsonb;result jsonb;again jsonb;email_address text;before_count bigint;
+begin
+ insert into public.dynamo_accounts(id,email,wallet_pence,roster_member) values(actor,'manual-actor-'||actor||'@example.invalid',0,false),(owner,'manual-owner-'||owner||'@example.invalid',5000,true);
+ insert into public.dynamo_staff_profiles(account_id,manual_staff,role,roles) values(actor,true,'event_admin',array['event_admin']);
+ insert into public.dynamo_gymnasts(id,account_id,source_id,first_name,last_name,date_of_birth,active,groups,medical_details) values(gym,owner,'manual:'||gym,'Example','Child','2020-01-01',true,array['gymini'],'None');
+ cfg:=jsonb_build_object('name','Manual fixture','slug','manual-fixture-'||parent,'status','Published','audience','everyone','allowedGroups','[]'::jsonb,'memberPriceCents',850,'nonMemberPriceCents',1000,'bookingFields',fields,'pricingOptions',jsonb_build_array(jsonb_build_object('id',option_id,'name','Half day','enabled',true,'startTime','09:00','endTime','12:00','memberPriceCents',850,'nonMemberPriceCents',1000)),'packages','[]'::jsonb,'sessions',jsonb_build_array(jsonb_build_object('id',s1,'date','2030-01-01','time','09:00','capacity',1,'label','A','minAge',5,'maxAge',12),jsonb_build_object('id',s2,'date','2030-01-02','time','09:00','capacity',2,'label','B','minAge',5,'maxAge',12),jsonb_build_object('id',s3,'date','2030-01-03','time','09:00','capacity',2,'label','C','minAge',5,'maxAge',12),jsonb_build_object('id',s4,'date','2030-01-04','time','09:00','capacity',2,'label','D','minAge',5,'maxAge',12)));
+ insert into public.dynamo_events(id,details) values(parent,cfg);perform public.save_dynamo_event(parent,cfg,false);
+ input:=jsonb_build_object('email','manual-owner-'||owner||'@example.invalid','parentFirstName','Example','parentLastName','Parent','gymnastId',gym,'targetId',s1,'optionId',option_id,'paymentStatus','Free','sendConfirmation',false,'answers',jsonb_build_object('parent-led',true,'emergency','07712345678'),'fieldDefinitions',fields);
+ result:=public.create_dynamo_manual_event_booking(actor,op,input);again:=public.create_dynamo_manual_event_booking(actor,op,input);
+ if result<>again or (result->>'pricePence')::bigint<>0 then raise exception 'Free or retry incorrect';end if;
+ if not exists(select 1 from public.dynamo_event_bookings where id=(result->>'bookingId')::uuid and price_pence=0 and medical_snapshot='None' and jsonb_array_length(responses)=2 and selection->>'optionName'='Half day' and ticket_number~'^DYN-[A-F0-9]{4}-[A-F0-9]{4}$') then raise exception 'Missing booking snapshots';end if;
+ if exists(select 1 from public.dynamo_confirmation_jobs where id=op) then raise exception 'Unrequested email queued';end if;
+ begin perform public.create_dynamo_manual_event_booking(actor,op,input||'{"paymentStatus":"Custom Amount Paid","amountPence":200}'::jsonb);raise exception 'Changed retry accepted';exception when others then if sqlerrm<>'OPERATION_CONFLICT' then raise;end if;end;
+ input:=input||jsonb_build_object('targetId',s2,'paymentStatus','Full Amount Paid','expectedFullPence',850,'sendConfirmation',true);op:=gen_random_uuid();result:=public.create_dynamo_manual_event_booking(actor,op,input);
+ if (result->>'pricePence')::bigint<>850 or not exists(select 1 from public.dynamo_confirmation_jobs where id=op) then raise exception 'Full amount/confirmation wrong';end if;
+ email_address:='manual-new-'||gen_random_uuid()||'@example.invalid';input:=input-'gymnastId'||jsonb_build_object('email',email_address,'targetId',s3,'firstName','New','lastName','Child','dateOfBirth','2020-01-01','medicalNone',true,'paymentStatus','Custom Amount Paid','amountPence',1250,'sendConfirmation',false);result:=public.create_dynamo_manual_event_booking(actor,gen_random_uuid(),input);
+ if (result->>'pricePence')::bigint<>1250 or not exists(select 1 from public.dynamo_transactions where account_id=(result->>'accountId')::uuid and amount_pence=1250 and payment_method='external' and provider_reference like 'manual:%') then raise exception 'Custom recorded amount incorrect';end if;
+ if (select wallet_pence from public.dynamo_accounts where id=owner)<>5000 or exists(select 1 from public.dynamo_wallet_ledger where account_id=owner) then raise exception 'Manual booking changed wallet';end if;
+ if (select sum(price_pence) from public.dynamo_event_bookings where event_id=any(array[s1,s2,s3,s4]) and status='Booked')<>2100 then raise exception 'Revenue incorrect';end if;
+ begin perform public.create_dynamo_manual_event_booking(actor,gen_random_uuid(),input);raise exception 'Duplicate accepted';exception when others then if sqlerrm<>'ALREADY_BOOKED' then raise;end if;end;
+ email_address:='manual-invalid-'||gen_random_uuid()||'@example.invalid';input:=input||jsonb_build_object('email',email_address,'targetId',s4,'answers','{}'::jsonb);
+ begin perform public.create_dynamo_manual_event_booking(actor,gen_random_uuid(),input);raise exception 'Missing answers accepted';exception when others then if sqlerrm<>'BOOKING_DATA_REQUIRED' then raise;end if;end;
+ if exists(select 1 from public.dynamo_accounts where email=email_address) then raise exception 'Failed booking left an account';end if;
+ input:=input||jsonb_build_object('targetId',s1,'answers',jsonb_build_object('parent-led',true,'emergency','07712345678'));
+ begin perform public.create_dynamo_manual_event_booking(actor,gen_random_uuid(),input);raise exception 'Capacity overflow';exception when others then if sqlerrm<>'SESSION_FULL' then raise;end if;end;
+ if exists(select 1 from public.dynamo_accounts where email=email_address) then raise exception 'Full session left an account';end if;
+ input:=input||jsonb_build_object('targetId',s4,'dateOfBirth','2000-01-01');
+ begin perform public.create_dynamo_manual_event_booking(actor,gen_random_uuid(),input);raise exception 'Age bypass';exception when others then if sqlerrm<>'AGE_INELIGIBLE' then raise;end if;end;
+ update public.dynamo_events set details=details||'{"audience":"members"}'::jsonb where id=s4;input:=input||jsonb_build_object('dateOfBirth','2020-01-01');
+ begin perform public.create_dynamo_manual_event_booking(actor,gen_random_uuid(),input);raise exception 'Membership bypass';exception when others then if sqlerrm<>'SESSION_INELIGIBLE' then raise;end if;end;
+ update public.dynamo_staff_profiles set role='check_in',roles=array['check_in'] where account_id=actor;
+ begin perform public.create_dynamo_manual_event_booking(actor,gen_random_uuid(),input);raise exception 'Role bypass';exception when others then if sqlerrm<>'STAFF_FORBIDDEN' then raise;end if;end;
+ if has_function_privilege('anon','public.create_dynamo_manual_event_booking(uuid,uuid,jsonb)','execute') or has_function_privilege('authenticated','public.create_dynamo_manual_event_booking(uuid,uuid,jsonb)','execute') then raise exception 'Public privileged RPC';end if;
+end $test$;
+rollback;

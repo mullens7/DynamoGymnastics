@@ -21,6 +21,9 @@
     },
     "api/admin-operations.js": {
       "maxDuration": 60
+    },
+    "api/manual-bookings.js": {
+      "maxDuration": 60
     }
   },
   "redirects": [
