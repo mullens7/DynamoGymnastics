@@ -3,3 +3,5 @@
 .gymtots-information{margin:36px 0 0;padding:28px;border:1px solid #dfe6f0;border-radius:12px;background:#f3f7fc}.gymtots-information h2{font-size:28px}.gymtots-information p{line-height:1.75}.gymtots-information .button{margin-top:10px}@media(max-width:600px){.gymtots-information{padding:20px}.gymtots-information .button{width:100%;text-align:center}}
 
 .class-location{margin-top:28px}.class-location>h2{font-size:30px;color:#1656a4}.class-location>p{color:#5c6f82}.schedule-card h4{font-size:23px;margin:0}.class-season{font-size:13px;color:#5c6f82}.schedule-card .class-category{display:none}.schedule-card .class-enquire{border:1px solid #1656a4;border-radius:8px;padding:8px 14px}.schedule-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr))}
+
+.class-fee-note{padding:16px 20px;background:#f3f7fc;border-radius:10px;line-height:1.7}.class-fee-note strong{color:#1656a4}
