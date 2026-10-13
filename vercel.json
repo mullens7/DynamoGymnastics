@@ -22,7 +22,7 @@
     "api/admin-operations.js": {
       "maxDuration": 60
     },
-    "api/manual-bookings.js": {
+    "api/admin-records.js": {
       "maxDuration": 60
     }
   },
