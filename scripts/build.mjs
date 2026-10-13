@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import {cpSync,rmSync,existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 if(!existsSync('public/index.html')) throw new Error('Homepage missing');
 rmSync('dist',{recursive:true,force:true});
@@ -16,4 +17,6 @@ for(const [name,asset] of Object.entries(signatureAssets)){
  if(!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw new Error('Invalid signature PNG');
  writeFileSync('dist/assets/email/'+name+'.png',png);
 }
+// A tightly cropped logo avoids the whitespace and divider of the old signature slice.
+await sharp(Buffer.from(signatureAssets['signature-logo'].content,'base64')).extract({left:60,top:190,width:480,height:150}).resize({width:480}).png().toFile('dist/assets/email/dynamo-logo.png');
 console.log('Static website built in dist/');
