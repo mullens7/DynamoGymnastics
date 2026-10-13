@@ -28,3 +28,5 @@ aside>.sync-member{display:block;width:100%;min-height:40px;margin:0 0 18px;padd
 .award-admin-tabs{display:flex;gap:10px;flex-wrap:wrap;padding:0 0 20px}.award-order{padding:20px 0;border-bottom:1px solid #e0e6ef}.award-order h2{font-size:18px}.admin-award-lines{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}.admin-award-lines>div{background:#f5f8fc;padding:14px;border-radius:8px}.admin-award-lines p{overflow-wrap:anywhere;line-height:1.5}
 
 .award-work-table{margin-bottom:24px}.award-work-table h2{margin:0}.award-work-table input[type=checkbox]{width:20px;height:20px;min-height:20px;cursor:pointer}.award-settings-cog{font-size:22px;padding:8px 12px}.award-order-tools{flex-wrap:wrap;gap:12px}.award-order-tools .tools{flex-wrap:wrap}.award-work-table td{white-space:normal;min-width:100px}.award-work-table td:first-child{min-width:40px}
+
+.party-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.party-dialog-heading h2{margin:0}.party-dialog-heading button{flex-shrink:0;font-size:22px}
