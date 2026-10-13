@@ -16,6 +16,10 @@ begin
  begin perform public.checkout_dynamo_awards(owner,jsonb_build_array(jsonb_build_object('gymnastId',gymini,'awardId',b,'expectedSession','Thursday 4.00-5.00, Gymini')),gen_random_uuid(),500,true);raise exception 'Wrong category could buy';exception when others then if sqlerrm<>'GYMNAST_INELIGIBLE' then raise;end if;end;
  begin perform public.checkout_dynamo_awards(owner,items,gen_random_uuid(),1,true);raise exception 'Forged total charged';exception when others then if sqlerrm<>'PRICE_CHANGED' then raise;end if;end;
  begin perform public.checkout_dynamo_awards(owner,jsonb_build_array(jsonb_build_object('gymnastId',gymini,'awardId',missing_price,'expectedSession','Thursday 4.00-5.00, Gymini')),gen_random_uuid(),0,true);raise exception 'Unset price became free';exception when others then if sqlerrm<>'PRICE_NOT_CONFIGURED' then raise;end if;end;
+ begin perform public.checkout_dynamo_awards(owner,jsonb_build_array(jsonb_build_object('gymnastId',gymini,'awardId',a,'expectedSession','Changed session')),gen_random_uuid(),400,true);raise exception 'Changed session accepted';exception when others then if sqlerrm<>'CLASS_CHANGED' then raise;end if;end;
+ update public.dynamo_gymnasts set time_class='' where id=gymini;
+ begin perform public.checkout_dynamo_awards(owner,jsonb_build_array(jsonb_build_object('gymnastId',gymini,'awardId',a,'expectedSession','')),gen_random_uuid(),400,true);raise exception 'Missing session accepted';exception when others then if sqlerrm<>'CLASS_NOT_SYNCED' then raise;end if;end;
+ update public.dynamo_gymnasts set time_class='Thursday 4.00-5.00, Gymini' where id=gymini;
  result:=public.checkout_dynamo_awards(owner,items,operation,900,true);
  if (result->>'totalPence')::int<>900 or (select wallet_pence from public.dynamo_accounts where id=owner)<>9100 then raise exception 'Wrong amount paid';end if;
  if (select count(*) from public.dynamo_award_items where order_id=operation)<>2 then raise exception 'Missing child award records';end if;
