@@ -6,7 +6,7 @@ const messages={AGE_INELIGIBLE:'The gymnast’s age does not meet the destinatio
 function makeOperationsHandler(env=process.env){return async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  try{const user=await currentUser(req,env);if(!user?.websiteAdmin&&!(require('./roles.cjs').hasPermission(user,'events.manage')&&req.method==='POST'&&req.body?.kind==='event'&&['move','cancel'].includes(req.body?.action)))return res.status(403).json({message:'Website Admin access is required.'});
- if(req.method==='GET'&&uuid(req.query?.accountId)){return res.status(200).json({ledger:await all(env,'dynamo_wallet_ledger?select=id,amount_pence,balance_pence,reason,created_at&account_id=eq.'+req.query.accountId+'&order=created_at.desc')});}
+ if(req.method==='GET'&&uuid(req.query?.accountId)){return res.status(200).json({ledger:await all(env,'dynamo_wallet_ledger?select=id,amount_pence,balance_pence,reason,created_at&account_id=eq.'+req.query.accountId+'&order=created_at.desc'),awardItems:await all(env,'dynamo_award_items?select=id,gymnast_id,details,created_at,written_at&account_id=eq.'+req.query.accountId+'&order=created_at.desc')});}
  if(req.method!=='POST')return res.status(405).json({message:'Method not allowed.'});if(!sameOrigin(req))return res.status(403).json({message:'Open the management website to continue.'});
  const b=req.body||{};if(!uuid(b.operationId))return res.status(400).json({message:'Please refresh and try again.'});
  if(b.action==='wallet'){
