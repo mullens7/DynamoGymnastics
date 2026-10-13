@@ -9,7 +9,7 @@ test('XLSX parsing groups siblings, staff parents and staff-only owners',async()
  ['g2','owner@example.invalid','Example Parent','Child','Two','Gymini','2018-02-03','BG2','Active'],
  ['s1','staff@example.invalid','Staff Owner','Staff','Only','Senior Coach','','','Active'],
  ['g3','former@example.invalid','Former Parent','Former','Child','MA Development 5 Hours','2012-01-01','','Inactive']]);
- const result=prepareRoster(wb,mapping);assert.equal(result.length,3);assert.equal(result[0].gymnasts.length,2);assert.deepEqual(result[0].gymnasts[0].groups,['advanced']);assert.equal(result[0].staff,true);
+ const result=prepareRoster(wb,mapping);assert.equal(result.length,3);assert.equal(result[0].gymnasts.length,2);assert.deepEqual(result[0].gymnasts[0].groups,['advanced']);assert.equal(result[0].staff,true);assert.equal(result[0].gymnasts[0].timeClass,'Girls Advanced Recreational, Junior Coach');assert.equal(result[0].gymnasts[1].timeClass,'Gymini');
  assert.equal(result[1].staff,true);assert.equal(result[1].member,false);assert.equal(result[1].gymnasts.length,0);assert.equal(result[2].member,false);
 });
 test('repeated sync and leaving the club retain IDs, purchases, transactions and login linkage',()=>{

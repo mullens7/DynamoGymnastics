@@ -59,7 +59,7 @@ function prepareRoster(workbook,mapping,report={}){
    const dateOfBirth=canonicalDate(value('dateOfBirth'));
    const id=columns.id?value('id'):profileIdentity(email,firstName,lastName,dateOfBirth);
    if(!id||seen.has(id))throw new RosterError('IDENTITY_REVIEW_REQUIRED');seen.add(id);
-   owner.gymnasts.push({sourceId:id,firstName,lastName,dateOfBirth,bgNumber:value('bgNumber'),groups:rule.groups,active});owner.member ||= active;
+   owner.gymnasts.push({sourceId:id,firstName,lastName,dateOfBirth,bgNumber:value('bgNumber'),timeClass,groups:rule.groups,active});owner.member ||= active;
   }
  }
  report.unmappedClasses=[...unmapped].slice(0,20).map(([label,rows])=>({label,rows}));

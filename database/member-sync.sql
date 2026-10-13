@@ -15,7 +15,7 @@ create table if not exists public.dynamo_gymnasts (
  source_id text not null unique,
  first_name text not null, last_name text not null,
  date_of_birth text, bg_number text not null default '',
- groups text[] not null default '{}', active boolean not null default false
+ groups text[] not null default '{}', active boolean not null default false,time_class text not null default ''
 );
 create index if not exists dynamo_gymnasts_account on public.dynamo_gymnasts(account_id);
 create table if not exists public.dynamo_purchases (
@@ -94,9 +94,9 @@ begin
     if manual_matches>1 then raise exception 'IDENTITY_REVIEW_REQUIRED'; end if;
     if manual_matches=1 then update public.dynamo_gymnasts set source_id=gymnast->>'sourceId' where id=manual_profile;end if;
    end if;
-   insert into public.dynamo_gymnasts(account_id,source_id,first_name,last_name,date_of_birth,bg_number,groups,active)
-   values(account_uuid,gymnast->>'sourceId',gymnast->>'firstName',gymnast->>'lastName',gymnast->>'dateOfBirth',coalesce(gymnast->>'bgNumber',''),array(select jsonb_array_elements_text(gymnast->'groups')),(gymnast->>'active')::boolean)
-   on conflict(source_id) do update set first_name=excluded.first_name,last_name=excluded.last_name,date_of_birth=excluded.date_of_birth,bg_number=excluded.bg_number,groups=excluded.groups,active=excluded.active;
+   insert into public.dynamo_gymnasts(account_id,source_id,first_name,last_name,date_of_birth,bg_number,groups,active,time_class)
+   values(account_uuid,gymnast->>'sourceId',gymnast->>'firstName',gymnast->>'lastName',gymnast->>'dateOfBirth',coalesce(gymnast->>'bgNumber',''),array(select jsonb_array_elements_text(gymnast->'groups')),(gymnast->>'active')::boolean,coalesce(gymnast->>'timeClass',''))
+   on conflict(source_id) do update set first_name=excluded.first_name,last_name=excluded.last_name,date_of_birth=excluded.date_of_birth,bg_number=excluded.bg_number,groups=excluded.groups,active=excluded.active,time_class=excluded.time_class;
   end loop;
  end loop;
  insert into public.dynamo_roster_runs(snapshot_hash,started_at,accounts,members,staff,gymnasts)

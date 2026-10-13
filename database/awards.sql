@@ -1,0 +1,60 @@
+begin;
+alter table public.dynamo_gymnasts add column if not exists time_class text not null default '';
+create table if not exists public.dynamo_awards(id uuid primary key default gen_random_uuid(),details jsonb not null,archived boolean not null default false,created_at timestamptz not null default now());
+create table if not exists public.dynamo_award_orders(id uuid primary key,account_id uuid not null references public.dynamo_accounts(id),purchase_id uuid not null references public.dynamo_purchases(id),items jsonb not null,result jsonb not null,created_at timestamptz not null default now());
+create table if not exists public.dynamo_award_items(id uuid primary key default gen_random_uuid(),order_id uuid not null references public.dynamo_award_orders(id),account_id uuid not null references public.dynamo_accounts(id),gymnast_id uuid not null references public.dynamo_gymnasts(id),award_id uuid not null references public.dynamo_awards(id),details jsonb not null,unique(gymnast_id,award_id));
+create index if not exists dynamo_award_orders_account on public.dynamo_award_orders(account_id);
+create index if not exists dynamo_award_orders_purchase on public.dynamo_award_orders(purchase_id);
+create index if not exists dynamo_award_items_order on public.dynamo_award_items(order_id);
+create index if not exists dynamo_award_items_account on public.dynamo_award_items(account_id);
+create index if not exists dynamo_award_items_award on public.dynamo_award_items(award_id);
+alter table public.dynamo_awards enable row level security;
+alter table public.dynamo_award_orders enable row level security;
+alter table public.dynamo_award_items enable row level security;
+revoke all on public.dynamo_awards,public.dynamo_award_orders,public.dynamo_award_items from public,anon,authenticated;
+grant select,insert,update on public.dynamo_awards to service_role;
+grant select,insert on public.dynamo_award_orders,public.dynamo_award_items to service_role;
+insert into public.dynamo_awards(details)
+select jsonb_build_object('name',name,'category','gymini','priceCents',null,'enabled',true,'position',position) from unnest(array['Violet','Indigo','Blue','Green','Yellow','Orange','Red','Rainbow']) with ordinality names(name,position) where not exists(select 1 from public.dynamo_awards a where a.details->>'name'=name and a.details->>'category'='gymini');
+insert into public.dynamo_awards(details)
+select jsonb_build_object('name',name,'category','recreational','priceCents',null,'enabled',true,'position',position) from unnest(array['Bronze Level 1','Bronze Level 2','Bronze Level 3','Silver Level 1','Silver Level 2','Silver Level 3','Gold Level 1','Gold Level 2','Gold Level 3']) with ordinality names(name,position) where not exists(select 1 from public.dynamo_awards a where a.details->>'name'=name and a.details->>'category'='recreational');
+create or replace function public.guard_dynamo_award_settings() returns trigger language plpgsql security invoker set search_path='' as $$begin perform pg_advisory_xact_lock(719442004);return new;end $$;
+create trigger dynamo_award_settings_lock before insert or update on public.dynamo_awards for each row execute function public.guard_dynamo_award_settings();
+create or replace function public.checkout_dynamo_awards(p_account uuid,p_items jsonb,p_operation uuid,p_expected_total bigint,p_credit boolean) returns jsonb language plpgsql security invoker set search_path='' as $$
+declare owner public.dynamo_accounts%rowtype;gym public.dynamo_gymnasts%rowtype;award public.dynamo_awards%rowtype;prior public.dynamo_award_orders%rowtype;item jsonb;lines jsonb:='[]'::jsonb;total bigint:=0;price bigint;purchase uuid;tx uuid;result jsonb;
+begin
+ perform pg_advisory_xact_lock(719442001);perform pg_advisory_xact_lock(719442004);
+ select * into prior from public.dynamo_award_orders where id=p_operation;
+ if found then if prior.account_id<>p_account or prior.items<>p_items then raise exception 'OPERATION_CONFLICT';end if;return prior.result||'{"unchanged":true}'::jsonb;end if;
+ if jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items) not between 1 and 20 or p_expected_total is null or p_expected_total<0 then raise exception 'INVALID_AWARD_ORDER';end if;
+ if (select count(distinct x->>'gymnastId') from jsonb_array_elements(p_items) x)<>jsonb_array_length(p_items) then raise exception 'INVALID_AWARD_ORDER';end if;
+ select * into owner from public.dynamo_accounts where id=p_account for update;
+ if not found or not owner.roster_member then raise exception 'MEMBER_REQUIRED';end if;
+ for item in select * from jsonb_array_elements(p_items) loop
+  select * into gym from public.dynamo_gymnasts where id=(item->>'gymnastId')::uuid and account_id=p_account for update;
+  if not found or not gym.active then raise exception 'GYMNAST_INELIGIBLE';end if;
+  select * into award from public.dynamo_awards where id=(item->>'awardId')::uuid and not archived for update;
+  if not found or not coalesce((award.details->>'enabled')::boolean,false) then raise exception 'AWARD_UNAVAILABLE';end if;
+  if award.details->>'category' not in ('gymini','recreational') or not (award.details->>'category'=any(gym.groups)) then raise exception 'GYMNAST_INELIGIBLE';end if;
+  if trim(gym.time_class)='' then raise exception 'CLASS_NOT_SYNCED';end if;
+  if item->>'expectedSession' is distinct from gym.time_class then raise exception 'CLASS_CHANGED';end if;
+  if exists(select 1 from public.dynamo_award_items where gymnast_id=gym.id and award_id=award.id) then raise exception 'AWARD_ALREADY_PURCHASED';end if;
+  price:=(award.details->>'priceCents')::bigint;if price is null or price<0 then raise exception 'PRICE_NOT_CONFIGURED';end if;
+  total:=total+price;
+  lines:=lines||jsonb_build_array(jsonb_build_object('gymnastId',gym.id,'gymnastName',gym.first_name||' '||gym.last_name,'session',gym.time_class,'awardId',award.id,'awardName',award.details->>'name','category',award.details->>'category','pricePence',price));
+ end loop;
+ if total<>p_expected_total then raise exception 'PRICE_CHANGED';end if;
+ if total>0 and (p_credit is not true or owner.wallet_pence<total) then raise exception 'CARD_PAYMENT_NOT_CONNECTED';end if;
+ insert into public.dynamo_purchases(account_id,details) values(p_account,jsonb_build_object('name','Gymnastics awards','kind','award','items',lines,'pricePence',total)) returning id into purchase;
+ if total>0 then update public.dynamo_accounts set wallet_pence=wallet_pence-total where id=p_account;
+ insert into public.dynamo_wallet_ledger(operation_id,account_id,actor_id,amount_pence,balance_pence,reason,purchase_id) values(p_operation,p_account,p_account,-total,owner.wallet_pence-total,'Award purchase',purchase);end if;
+ insert into public.dynamo_transactions(account_id,purchase_id,amount_pence,status,payment_method) values(p_account,purchase,total,'successful','wallet') returning id into tx;
+ result:=jsonb_build_object('orderId',p_operation,'purchaseId',purchase,'transactionId',tx,'totalPence',total,'walletBalance',owner.wallet_pence-total);
+ insert into public.dynamo_award_orders(id,account_id,purchase_id,items,result) values(p_operation,p_account,purchase,p_items,result);
+ for item in select * from jsonb_array_elements(lines) loop insert into public.dynamo_award_items(order_id,account_id,gymnast_id,award_id,details) values(p_operation,p_account,(item->>'gymnastId')::uuid,(item->>'awardId')::uuid,item);end loop;
+ return result;
+end $$;
+revoke all on function public.guard_dynamo_award_settings() from public,anon,authenticated;
+revoke all on function public.checkout_dynamo_awards(uuid,jsonb,uuid,bigint,boolean) from public,anon,authenticated;
+grant execute on function public.checkout_dynamo_awards(uuid,jsonb,uuid,bigint,boolean) to service_role;
+commit;

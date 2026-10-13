@@ -1,0 +1,30 @@
+begin;
+do $test$
+declare owner uuid;other_owner uuid;gymini uuid;rec uuid;inactive uuid;a uuid;b uuid;missing_price uuid;operation uuid:=gen_random_uuid();items jsonb;result jsonb;amount bigint;before_count int;
+begin
+ insert into public.dynamo_accounts(email,owner_name,roster_member,wallet_pence) values('awards-fixture@example.invalid','Award Parent',true,10000) returning id into owner;
+ insert into public.dynamo_accounts(email,roster_member,wallet_pence) values('awards-other-fixture@example.invalid',true,10000) returning id into other_owner;
+ insert into public.dynamo_gymnasts(account_id,source_id,first_name,last_name,groups,active,time_class) values(owner,'awards-test-gymini','First','Child',array['gymini'],true,'Thursday 4.00-5.00, Gymini') returning id into gymini;
+ insert into public.dynamo_gymnasts(account_id,source_id,first_name,last_name,groups,active,time_class) values(owner,'awards-test-rec','Second','Child',array['recreational'],true,'Saturday 10.30-11.30, Recreational') returning id into rec;
+ insert into public.dynamo_gymnasts(account_id,source_id,first_name,last_name,groups,active,time_class) values(owner,'awards-test-nonmember','Nonmember','Child',array['gymini'],false,'Former class') returning id into inactive;
+ insert into public.dynamo_awards(details) values('{"name":"Fixture Violet","category":"gymini","priceCents":400,"enabled":true,"position":1}') returning id into a;
+ insert into public.dynamo_awards(details) values('{"name":"Fixture Bronze 1","category":"recreational","priceCents":500,"enabled":true,"position":1}') returning id into b;
+ insert into public.dynamo_awards(details) values('{"name":"Fixture Price Pending","category":"gymini","priceCents":null,"enabled":true,"position":2}') returning id into missing_price;
+ items:=jsonb_build_array(jsonb_build_object('gymnastId',gymini,'awardId',a,'expectedSession','Thursday 4.00-5.00, Gymini'),jsonb_build_object('gymnastId',rec,'awardId',b,'expectedSession','Saturday 10.30-11.30, Recreational'));
+ begin perform public.checkout_dynamo_awards(other_owner,items,gen_random_uuid(),900,true);raise exception 'Other owner could buy';exception when others then if sqlerrm<>'GYMNAST_INELIGIBLE' then raise;end if;end;
+ begin perform public.checkout_dynamo_awards(owner,jsonb_build_array(jsonb_build_object('gymnastId',inactive,'awardId',a,'expectedSession','Former class')),gen_random_uuid(),400,true);raise exception 'Nonmember child could buy';exception when others then if sqlerrm<>'GYMNAST_INELIGIBLE' then raise;end if;end;
+ begin perform public.checkout_dynamo_awards(owner,jsonb_build_array(jsonb_build_object('gymnastId',gymini,'awardId',b,'expectedSession','Thursday 4.00-5.00, Gymini')),gen_random_uuid(),500,true);raise exception 'Wrong category could buy';exception when others then if sqlerrm<>'GYMNAST_INELIGIBLE' then raise;end if;end;
+ begin perform public.checkout_dynamo_awards(owner,items,gen_random_uuid(),1,true);raise exception 'Forged total charged';exception when others then if sqlerrm<>'PRICE_CHANGED' then raise;end if;end;
+ begin perform public.checkout_dynamo_awards(owner,jsonb_build_array(jsonb_build_object('gymnastId',gymini,'awardId',missing_price,'expectedSession','Thursday 4.00-5.00, Gymini')),gen_random_uuid(),0,true);raise exception 'Unset price became free';exception when others then if sqlerrm<>'PRICE_NOT_CONFIGURED' then raise;end if;end;
+ result:=public.checkout_dynamo_awards(owner,items,operation,900,true);
+ if (result->>'totalPence')::int<>900 or (select wallet_pence from public.dynamo_accounts where id=owner)<>9100 then raise exception 'Wrong amount paid';end if;
+ if (select count(*) from public.dynamo_award_items where order_id=operation)<>2 then raise exception 'Missing child award records';end if;
+ if not exists(select 1 from public.dynamo_award_items where order_id=operation and details->>'session'='Thursday 4.00-5.00, Gymini' and details->>'awardName'='Fixture Violet') then raise exception 'Missing confirmation snapshot';end if;
+ result:=public.checkout_dynamo_awards(owner,items,operation,900,true);
+ if not (result->>'unchanged')::boolean or (select wallet_pence from public.dynamo_accounts where id=owner)<>9100 then raise exception 'Retry charged twice';end if;
+ begin perform public.checkout_dynamo_awards(owner,items,gen_random_uuid(),900,true);raise exception 'Duplicate award charged';exception when others then if sqlerrm<>'AWARD_ALREADY_PURCHASED' then raise;end if;end;
+ update public.dynamo_accounts set roster_member=false where id=owner;
+ begin perform public.checkout_dynamo_awards(owner,items,gen_random_uuid(),900,true);raise exception 'Former member could buy';exception when others then if sqlerrm<>'MEMBER_REQUIRED' then raise;end if;end;
+ if not exists(select 1 from public.dynamo_purchases where id=(result->>'purchaseId')::uuid and details->>'kind'='award') then raise exception 'Purchase history lost';end if;
+end $test$;
+rollback;
