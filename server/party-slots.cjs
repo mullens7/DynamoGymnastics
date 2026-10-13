@@ -17,7 +17,7 @@ function makePartySlotsHandler(env=process.env,services={rpc,authorizeAdmin}){re
  if(!await services.authorizeAdmin(req,env))return res.status(401).json({message:'Sign in to management.'});
  if(req.method!=='POST')return res.status(405).json({message:'Method not allowed.'});
  let body;try{
- if(req.body?.action==='create')body={p_action:'create',p_slots:slots(req.body),p_start:null,p_end:null,p_reason:''};
+ if(req.body?.action==='create'){let input=req.body;if(input.partyType){const type=(await require('./party-types.cjs').partyTypes(env)).find(t=>t.id===input.partyType&&t.enabled);if(!type)throw Error('Choose an enabled party type.');input={...input,...type,partyType:type.id,days:[type.day],times:type.times};}body={p_action:'create',p_slots:slots(input),p_start:null,p_end:null,p_reason:''};}
  else if(['block','unblock'].includes(req.body?.action)){const start=day(req.body.start),end=day(req.body.end);if(end<start||end-start>3*366*86400000)throw Error('Choose a valid date range.');const reason=String(req.body.reason||'').trim();if(req.body.action==='block'&&(!reason||reason.length>200))throw Error('Enter a blocking reason of up to 200 characters.');body={p_action:req.body.action,p_slots:[],p_start:req.body.start,p_end:req.body.end,p_reason:reason};}
  else throw Error('Choose an action.');
  }catch(e){return res.status(400).json({message:e.message});}
