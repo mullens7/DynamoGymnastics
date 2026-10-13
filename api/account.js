@@ -1,1 +1,1 @@
-module.exports=(req,res)=>req.query?.section==='staff'?require('../server/staff-resources.cjs').makeStaffHandler()(req,res):require('../server/account.cjs').makeAccountHandler()(req,res);
+module.exports=(req,res)=>['staff','staff-management'].includes(req.query?.section)?require('../server/staff-resources.cjs').makeStaffHandler(process.env,undefined,req.query.section==='staff-management')(req,res):require('../server/account.cjs').makeAccountHandler()(req,res);

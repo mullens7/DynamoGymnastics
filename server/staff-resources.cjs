@@ -35,11 +35,13 @@ async function verifyFile(env,record){
  const reader=response.body.getReader();let bytes=Buffer.alloc(0);try{while(bytes.length<12){const chunk=await reader.read();if(chunk.done)break;bytes=Buffer.concat([bytes,Buffer.from(chunk.value)]);}}finally{await reader.cancel();}
  if(record.mime_type==='application/pdf'?bytes.subarray(0,5).toString()!=='%PDF-':bytes.subarray(4,8).toString()!=='ftyp')throw Error('The file is not a valid PDF or MP4.');
 }
-function makeStaffHandler(env=process.env,services={currentUser,store,all,signedUpload,signedRead,verifyFile}){return async(req,res)=>{
+function makeStaffHandler(env=process.env,services={currentUser,store,all,signedUpload,signedRead,verifyFile},management=false){return async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  try{
   const user=await services.currentUser(req,env);if(!user)return res.status(401).json({message:'Log in to the staff portal.'});
   if(!user.websiteAdmin&&!user.roster_staff)return res.status(403).json({message:'This portal is for Dynamo staff. Contact the club if you need access.'});
+  const write=req.method==='DELETE'||req.method==='POST'&&req.body?.action!=='open';
+  if((management||write)&&(!management||!user.websiteAdmin))return res.status(403).json({message:'Add and manage staff resources in admin management.'});
   if(!['GET','POST','DELETE'].includes(req.method))return res.status(405).json({message:'Method not allowed.'});
   if(req.method!=='GET'&&!sameOrigin(req))return res.status(403).json({message:'Open the Dynamo website to continue.'});
   if(req.method==='GET'){const records=await services.all(env,'dynamo_staff_resources?select=id,kind,title,artist,notes,song_url,class_group,start_date,end_date,file_name,mime_type,file_size,created_at&archived=eq.false&state=eq.ready&order=start_date.asc.nullslast,created_at.desc');return res.status(200).json({user:{name:user.owner_name||user.email,websiteAdmin:user.websiteAdmin},records});}
