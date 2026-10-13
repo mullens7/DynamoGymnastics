@@ -5,7 +5,7 @@ const {makeRecordsHandler,validate}=require('../server/admin-records.cjs');
 const env={SYNC_TEST_KEY:'fictional-management-access-key-32-characters',SUPABASE_URL:'https://fixture.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_fixture'};
 const host='manage.example.invalid',origin='https://'+host;
 function res(){return {headers:{},setHeader(k,v){this.headers[k]=v;},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};}
-function req(method='GET'){return {method,headers:{host,origin,cookie:auth.cookie(auth.token(env)).split(';')[0]},query:{kind:'events'}};}
+function req(method='GET'){return {method,headers:{host,origin,authorization:'Bearer '+env.SYNC_TEST_KEY},query:{kind:'events'}};}
 const event={name:'Holiday activity',date:'2026-10-27',time:'10:00',capacity:30,memberPriceCents:1000,nonMemberPriceCents:1500,audience:'groups',allowedGroups:['gymtots','gymini'],status:'Draft'};
 test('management session survives a new request, expires and rejects tampering and key changes',()=>{
  const now=Date.now(),value=auth.token(env,now),request={headers:{cookie:auth.cookie(value).split(';')[0]}};
@@ -14,14 +14,12 @@ test('management session survives a new request, expires and rejects tampering a
  request.headers.cookie+='x';assert.equal(auth.session(request,env,now),false);assert.equal(auth.session({headers:{}},env),false);
 });
 test('cookie mutations reject other origins while reads require a valid session',()=>{
- const request=req('POST');assert.equal(auth.allowed(request,env),true);request.headers.origin='https://attacker.example';assert.equal(auth.allowed(request,env),false);
+ const request=req('POST');delete request.headers.authorization;request.headers.cookie=auth.cookie(auth.token(env)).split(';')[0];assert.equal(auth.allowed(request,env),true);request.headers.origin='https://attacker.example';assert.equal(auth.allowed(request,env),false);
  request.method='GET';assert.equal(auth.allowed(request,env),true);request.headers.cookie='';assert.equal(auth.allowed(request,env),false);
 });
-test('sign in issues only an HttpOnly secure cookie and sign out clears it',async()=>{
- const handler=makeSessionHandler(env),request={method:'POST',headers:{host,origin},body:{key:env.SYNC_TEST_KEY}},response=res();
- await handler(request,response);assert.equal(response.code,200);assert.match(response.headers['Set-Cookie'],/HttpOnly; Secure; SameSite=Strict/);assert.equal(JSON.stringify(response.body).includes(env.SYNC_TEST_KEY),false);
- const followup={method:'GET',headers:{cookie:response.headers['Set-Cookie'].split(';')[0]}},read=res();await handler(followup,read);assert.equal(read.code,200);
- const wrong=res();await handler({...request,body:{key:'incorrect'}},wrong);assert.equal(wrong.code,401);assert.equal(wrong.headers['Set-Cookie'],undefined);
+test('legacy administrator key login is disabled and sign out clears both cookies',async()=>{
+ const handler=makeSessionHandler(env),request={method:'POST',headers:{host,origin},body:{key:env.SYNC_TEST_KEY}},response=res();await handler(request,response);assert.equal(response.code,405);assert.equal(response.headers['Set-Cookie'],undefined);
+ const followup={method:'GET',headers:{cookie:auth.cookie(auth.token(env)).split(';')[0]}},read=res();await handler(followup,read);assert.equal(read.code,401);
  const out=res();await handler({...request,method:'DELETE'},out);assert.equal(out.headers['Set-Cookie'].length,2);for(const value of out.headers['Set-Cookie'])assert.match(value,/Max-Age=0/);
 });
 test('record validation enforces trusted prices, groups, dates and limits',()=>{

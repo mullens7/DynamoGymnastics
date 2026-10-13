@@ -16,5 +16,5 @@ function allowed(req,env=process.env){return authenticated(req,env)&&(req.method
 function cookie(value,maxAge=TTL){return `${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;}
 module.exports={token,session,authenticated,allowed,sameOrigin,cookie,equal,configured};
 
-async function authorizeAdmin(req,env=process.env){if(allowed(req,env))return true;try{const user=await require('./user-auth.cjs').currentUser(req,env);return !!user?.websiteAdmin&&(req.method==='GET'||req.method==='HEAD'||sameOrigin(req));}catch{return false;}}
+async function authorizeAdmin(req,env=process.env,permission='super_admin'){try{const user=await require('./user-auth.cjs').currentUser(req,env);if(user)return require('./roles.cjs').hasPermission(user,permission)&&(req.method==='GET'||req.method==='HEAD'||sameOrigin(req));return configured(env)&&equal(req.headers.authorization,'Bearer '+env.SYNC_TEST_KEY);}catch{return false;}}
 module.exports.authorizeAdmin=authorizeAdmin;

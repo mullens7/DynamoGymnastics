@@ -8,7 +8,7 @@ module.exports=async function(req,res){
  try{
   const config=database(process.env),url=new URL(config.url);
   url.pathname='/rest/v1/dynamo_accounts';
-  url.searchParams.set('select','id,email,owner_name,roster_member,roster_staff,wallet_pence,dynamo_gymnasts(id,first_name,last_name,date_of_birth,bg_number,groups,active)');
+  url.searchParams.set('select','id,email,owner_name,roster_member,roster_staff,wallet_pence,staff_profile:dynamo_staff_profiles!dynamo_staff_profiles_account_id_fkey(first_name,last_name,manual_staff,enabled,role),dynamo_gymnasts(id,first_name,last_name,date_of_birth,bg_number,groups,active)');
   url.searchParams.set('order','email.asc');
   // Explicit pagination: never silently truncate Contacts at PostgREST's row limit.
   const accounts=[];let offset=0;
@@ -24,6 +24,6 @@ module.exports=async function(req,res){
   if(!syncResponse.ok)throw new Error('Sync status unavailable');const syncs=await syncResponse.json();
   let lastSyncedAt=syncs[0]?.finished_at||null;
   if(!lastSyncedAt){const rosterUrl=new URL(config.url+'/rest/v1/dynamo_roster_runs?select=completed_at&order=completed_at.desc&limit=1');const rosterResponse=await fetch(rosterUrl,{headers:config.headers,redirect:'error',signal:AbortSignal.timeout(15000)});if(!rosterResponse.ok)throw new Error('Sync status unavailable');const runs=await rosterResponse.json();lastSyncedAt=runs[0]?.completed_at||null;}
-  return res.status(200).json({accounts:accounts.map(account=>({...account,websiteAdmin:require('./roles.cjs').isWebsiteAdmin(account.email)})),lastSyncedAt});
+  return res.status(200).json({accounts:accounts.map(account=>require('./roles.cjs').staffAccess(account)),lastSyncedAt});
  }catch{return res.status(502).json({error:'CONTACTS_UNAVAILABLE',message:'Contacts could not be loaded.'});}
 };

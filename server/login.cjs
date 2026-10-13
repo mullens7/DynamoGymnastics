@@ -4,7 +4,6 @@ const {currentUser,cookie,hash,signOut}=require('./user-auth.cjs');
 const {rpc,store}=require('./store.cjs');
 const {sendEmail}=require('./email.cjs');
 const {verificationEmail}=require('./email-template.cjs');
-const {isWebsiteAdmin}=require('./roles.cjs');
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
 const email=value=>typeof value==='string'&&value.length<=254&&/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(value);
 function digest(env,value){if(!env.SYNC_TEST_KEY||env.SYNC_TEST_KEY.length<32)throw Error('LOGIN_NOT_CONFIGURED');return createHmac('sha256',env.SYNC_TEST_KEY).update('dynamo-login-v1:'+value).digest('hex');}
@@ -29,7 +28,7 @@ function makeLoginHandler(env=process.env,services={rpc,store,sendEmail,currentU
   const {challengeId,code}=req.body;if(!uuid(challengeId)||!/^\d{4}$/.test(code||''))return res.status(400).json({message:'Enter the four-digit code.'});
   const token=randomBytes(32).toString('hex');const result=await services.rpc(env,'verify_dynamo_code',{p_id:challengeId,p_hash:digest(env,challengeId+':'+code),p_session_hash:hash(token)});
   if(!result.ok)return res.status(400).json({message:result.error==='OTP_INCORRECT'?'That code is incorrect. Please try again.':'That code has expired or has already been used. Request a new code.'});
-  res.setHeader('Set-Cookie',cookie(token));return res.status(200).json({ok:true,websiteAdmin:isWebsiteAdmin(result.email)});
+  res.setHeader('Set-Cookie',cookie(token));return res.status(200).json({ok:true});
  }
  return res.status(400).json({message:'Choose a login action.'});
  }catch{return res.status(503).json({message:'Login is temporarily unavailable. Please try again shortly.'});}

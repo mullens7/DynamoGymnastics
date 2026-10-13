@@ -39,12 +39,12 @@ function makeStaffHandler(env=process.env,services={currentUser,store,all,signed
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  try{
   const user=await services.currentUser(req,env);if(!user)return res.status(401).json({message:'Log in to the staff portal.'});
-  if(!user.websiteAdmin&&!user.roster_staff)return res.status(403).json({message:'This portal is for Dynamo staff. Contact the club if you need access.'});
+  if(!require('./roles.cjs').hasPermission(user,'resources.read'))return res.status(403).json({message:'This portal is for Dynamo staff. Contact the club if you need access.'});
   const write=req.method==='DELETE'||req.method==='POST'&&req.body?.action!=='open';
-  if((management||write)&&(!management||!user.websiteAdmin))return res.status(403).json({message:'Add and manage staff resources in admin management.'});
+  if((management||write)&&(!management||!require('./roles.cjs').hasPermission(user,'resources.manage')))return res.status(403).json({message:'Add and manage staff resources in admin management.'});
   if(!['GET','POST','DELETE'].includes(req.method))return res.status(405).json({message:'Method not allowed.'});
   if(req.method!=='GET'&&!sameOrigin(req))return res.status(403).json({message:'Open the Dynamo website to continue.'});
-  if(req.method==='GET'){const records=await services.all(env,'dynamo_staff_resources?select=id,kind,title,artist,notes,song_url,class_group,start_date,end_date,file_name,mime_type,file_size,created_at&archived=eq.false&state=eq.ready&order=start_date.asc.nullslast,created_at.desc');return res.status(200).json({user:{name:user.owner_name||user.email,websiteAdmin:user.websiteAdmin},records});}
+  if(req.method==='GET'){const records=await services.all(env,'dynamo_staff_resources?select=id,kind,title,artist,notes,song_url,class_group,start_date,end_date,file_name,mime_type,file_size,created_at&archived=eq.false&state=eq.ready&order=start_date.asc.nullslast,created_at.desc');return res.status(200).json({user:{name:user.owner_name||user.email,websiteAdmin:user.websiteAdmin,canManage:require('./roles.cjs').hasPermission(user,'resources.manage')},records});}
   if(req.method==='DELETE'){if(!uuid(req.query?.id))return res.status(400).json({message:'Choose a resource.'});const rows=await services.store(env,'dynamo_staff_resources?id=eq.'+req.query.id+'&archived=eq.false',{method:'PATCH',body:JSON.stringify({archived:true})});return res.status(rows.length?200:404).json({ok:!!rows.length});}
   const action=req.body?.action;
   if(action==='add'){
