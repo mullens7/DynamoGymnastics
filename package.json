@@ -11,6 +11,8 @@
   "exceljs": "4.4.0",
   "heic2any": "0.0.4",
   "nodemailer": "10.0.16",
-  "playwright-core": "1.64.0"
+  "playwright-core": "1.64.0",
+  "qr-scanner": "1.4.2",
+  "qrcode": "1.5.4"
  }
 }
