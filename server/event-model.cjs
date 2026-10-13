@@ -19,8 +19,8 @@ function validateEvent(input){
  const minAge=s.minAge==null||s.minAge===''?null:Number(s.minAge),maxAge=s.maxAge==null||s.maxAge===''?null:Number(s.maxAge);
  if([minAge,maxAge].some(a=>a!==null&&(!Number.isInteger(a)||a<0||a>100))||(minAge!==null&&maxAge!==null&&minAge>maxAge))throw Error('Enter valid inclusive minimum and maximum ages.');
  const label=String(s.label||'').trim();if(label.length>100)throw Error('Age group / session label must be under 100 characters.');
- return {id,date:s.date,time:s.time,capacity:s.capacity,label,minAge,maxAge};
+ const endTime=s.endTime||'';if(endTime&&(!/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)||endTime<=s.time))throw Error('Session end time must be after its start time.');return {id,date:s.date,time:s.time,endTime,capacity:s.capacity,label,minAge,maxAge};
  });sessions.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
- return {name,slug,description,image,qrEmail:typeof input.qrEmail==='boolean'?input.qrEmail:null,bookingFields:require('./booking-fields.cjs').validateFields(input.bookingFields),status:input.status,audience:input.audience,allowedGroups:input.audience==='groups'?[...new Set(allowedGroups)]:[],memberPriceCents:input.memberPriceCents,nonMemberPriceCents:input.nonMemberPriceCents,sessions,date:sessions[0].date,time:sessions[0].time,capacity:sessions.reduce((n,s)=>n+s.capacity,0)};
+ return {name,slug,description,image,...require('./event-pricing.cjs').validatePricing(input,sessions),qrEmail:typeof input.qrEmail==='boolean'?input.qrEmail:null,bookingFields:require('./booking-fields.cjs').validateFields(input.bookingFields),status:input.status,audience:input.audience,allowedGroups:input.audience==='groups'?[...new Set(allowedGroups)]:[],memberPriceCents:input.memberPriceCents,nonMemberPriceCents:input.nonMemberPriceCents,sessions,date:sessions[0].date,time:sessions[0].time,capacity:sessions.reduce((n,s)=>n+s.capacity,0)};
 }
 module.exports={validateEvent,slugify};
