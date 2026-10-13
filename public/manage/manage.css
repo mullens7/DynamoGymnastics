@@ -30,3 +30,5 @@ aside>.sync-member{display:block;width:100%;min-height:40px;margin:0 0 18px;padd
 .award-work-table{margin-bottom:24px}.award-work-table h2{margin:0}.award-work-table input[type=checkbox]{width:20px;height:20px;min-height:20px;cursor:pointer}.award-settings-cog{font-size:22px;padding:8px 12px}.award-order-tools{flex-wrap:wrap;gap:12px}.award-order-tools .tools{flex-wrap:wrap}.award-work-table td{white-space:normal;min-width:100px}.award-work-table td:first-child{min-width:40px}
 
 .party-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.party-dialog-heading h2{margin:0}.party-dialog-heading button{flex-shrink:0;font-size:22px}
+
+.award-settings-cog,#party-slot-settings{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}.award-settings-cog svg,#party-slot-settings svg{display:block;flex-shrink:0}
