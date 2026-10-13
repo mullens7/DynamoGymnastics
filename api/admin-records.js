@@ -1,1 +1,1 @@
-module.exports=(req,res)=>req.query?.kind==='party-slots'?require('../server/party-slots.cjs').makePartySlotsHandler()(req,res):require('../server/admin-records.cjs').makeRecordsHandler()(req,res);
+module.exports=(req,res)=>req.query?.kind==='classes'?require('../server/classes.cjs').makeClassesHandler(process.env,true)(req,res):req.query?.kind==='party-slots'?require('../server/party-slots.cjs').makePartySlotsHandler()(req,res):require('../server/admin-records.cjs').makeRecordsHandler()(req,res);

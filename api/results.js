@@ -1,1 +1,1 @@
-module.exports=(req,res)=>req.query?.kind==='events'?require('../server/public-events.cjs').makePublicEventsHandler()(req,res):require('../server/results.cjs').makeResultsHandler()(req,res);
+module.exports=(req,res)=>req.query?.kind==='classes'?require('../server/classes.cjs').makeClassesHandler()(req,res):req.query?.kind==='events'?require('../server/public-events.cjs').makePublicEventsHandler()(req,res):require('../server/results.cjs').makeResultsHandler()(req,res);
