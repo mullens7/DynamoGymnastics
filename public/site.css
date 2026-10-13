@@ -17,3 +17,5 @@
 @media(max-width:600px){.hero-copy h1{font-size:clamp(25px,6.9vw,40px)}}
 
 .hero-copy{container-type:inline-size}.hero-copy h1{font-size:clamp(20px,8.5cqw,48px)}
+
+.simple-page-title{background:#fff;padding:32px 0 22px;text-align:center}.simple-page-title h1{font-size:clamp(32px,4vw,48px)}@media(max-width:600px){.simple-page-title{padding:26px 0 12px}}
