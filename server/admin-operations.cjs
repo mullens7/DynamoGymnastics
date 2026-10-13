@@ -15,6 +15,7 @@ function makeOperationsHandler(env=process.env){return async(req,res)=>{
  if(b.action==='refund'){
  if(!uuid(b.transactionId)||!Number.isSafeInteger(b.amountPence)||b.amountPence<=0||typeof b.reason!=='string'||b.reason.trim().length<3||b.reason.length>300)return res.status(400).json({message:'Enter a refund amount and reason.'});
  return res.status(200).json(await rpc(env,'refund_dynamo_wallet_payment',{p_transaction:b.transactionId,p_actor:user.id,p_amount:b.amountPence,p_reason:b.reason.trim(),p_operation:b.operationId}));}
+ if(b.action==='move'&&b.kind==='event')return res.status(400).json({message:'Open the updated Move booking form to confirm destination prices and booking details.'});
  if(['move','cancel'].includes(b.action)&&['event','party'].includes(b.kind)&&uuid(b.bookingId)){
  if(b.action==='move'&&(b.kind==='event'?!uuid(b.targetId):!/^\d{4}-\d{2}-\d{2}$/.test(b.date||'')||!/^([01]\d|2[0-3]):[0-5]\d$/.test(b.time||'')))return res.status(400).json({message:'Choose the destination session or party date and time.'});
  return res.status(200).json(await rpc(env,'manage_dynamo_booking',{p_kind:b.kind,p_booking:b.bookingId,p_actor:user.id,p_action:b.action,p_target:b.targetId||null,p_date:b.date||null,p_time:b.time||null,p_operation:b.operationId}));}

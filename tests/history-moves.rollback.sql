@@ -1,4 +1,5 @@
 begin;
+set local role service_role;
 do $test$
 declare actor uuid:=gen_random_uuid();owner uuid:=gen_random_uuid();other_owner uuid:=gen_random_uuid();gym uuid:=gen_random_uuid();source uuid:=gen_random_uuid();cheap uuid:=gen_random_uuid();expensive uuid:=gen_random_uuid();second uuid:=gen_random_uuid();operation uuid:=gen_random_uuid();book jsonb;input jsonb;quote jsonb;result jsonb;receipt uuid;booking uuid;old_wallet bigint;erase_op uuid:=gen_random_uuid();items jsonb;
 begin

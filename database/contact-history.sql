@@ -60,4 +60,6 @@ begin
 end $$;
 revoke all on function public.erase_dynamo_contact_history(uuid,uuid,uuid,jsonb) from public,anon,authenticated;
 grant execute on function public.erase_dynamo_contact_history(uuid,uuid,uuid,jsonb) to service_role;
+grant delete on public.dynamo_purchases,public.dynamo_transactions,public.dynamo_event_bookings,public.dynamo_party_bookings,public.dynamo_wallet_ledger,public.dynamo_booking_actions,public.dynamo_confirmation_jobs,public.dynamo_basket_checkouts,public.dynamo_award_items,public.dynamo_award_orders,public.dynamo_refunds to service_role;
+grant update on public.dynamo_basket_checkouts to service_role;
 commit;
