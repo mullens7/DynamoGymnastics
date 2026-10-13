@@ -1,0 +1,10 @@
+begin;
+alter table public.dynamo_accounts add column temporary_member_start date;
+alter table public.dynamo_accounts add column temporary_member_end date;
+alter table public.dynamo_accounts add column temporary_member_by uuid;
+alter table public.dynamo_accounts add constraint dynamo_temporary_member_dates check((temporary_member_start is null and temporary_member_end is null) or (temporary_member_start is not null and temporary_member_end is not null and temporary_member_end>=temporary_member_start));
+create function public.dynamo_account_is_member(p_account uuid) returns boolean language sql stable security invoker set search_path='' as $$select coalesce(roster_member or manual_member or ((now() at time zone 'Europe/London')::date between temporary_member_start and temporary_member_end),false) from public.dynamo_accounts where id=p_account$$;
+revoke all on function public.dynamo_account_is_member(uuid) from public,anon,authenticated;
+grant execute on function public.dynamo_account_is_member(uuid) to service_role;
+do $$declare r record;def text;begin for r in select oid from pg_proc where pronamespace='public'::regnamespace and proname in ('book_dynamo_session','book_dynamo_session_v2','checkout_dynamo_basket','checkout_dynamo_awards') loop def:=pg_get_functiondef(r.oid);def:=replace(def,'account.roster_member','public.dynamo_account_is_member(account.id)');def:=replace(def,'owner.roster_member','public.dynamo_account_is_member(owner.id)');def:=replace(def,'select roster_member into member from public.dynamo_accounts','select public.dynamo_account_is_member(id) into member from public.dynamo_accounts');execute def;end loop;end $$;
+commit;
