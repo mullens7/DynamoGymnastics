@@ -28,6 +28,26 @@
       "source": "/octoberhalfterm/",
       "destination": "/events/",
       "permanent": true
+    },
+    {
+      "source": "/parties/non-member/",
+      "destination": "/parties/?type=dynamo",
+      "permanent": true
+    },
+    {
+      "source": "/parties/biggym-member/",
+      "destination": "/parties/?type=dynamo",
+      "permanent": true
+    },
+    {
+      "source": "/parties/biggym-nonmember/",
+      "destination": "/parties/?type=dynamo",
+      "permanent": true
+    },
+    {
+      "source": "/parties/smallgym-nonmember/",
+      "destination": "/parties/?type=preschool",
+      "permanent": true
     }
   ],
   "rewrites": [
