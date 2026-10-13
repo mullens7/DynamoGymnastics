@@ -39,7 +39,7 @@ async function request(config,url,options={}){
 async function all(config,url){const rows=[];for(let offset=0;offset<=20000;offset+=500){url.searchParams.set('limit','500');url.searchParams.set('offset',String(offset));const page=await request(config,url);rows.push(...page);if(page.length<500)return rows;}throw Error('STORAGE_FAILED');}
 function makeRecordsHandler(env=process.env){return async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
- if(!await authorizeAdmin(req,env,req.query?.kind==='events'?'events.manage':'super_admin'))return res.status(401).json({message:'Sign in to management.'});
+ if(req.query?.kind==='booking-fields')return require('./booking-fields.cjs').makeFieldSettingsHandler(env)(req,res);if(!await authorizeAdmin(req,env,req.query?.kind==='events'?'events.manage':'super_admin'))return res.status(401).json({message:'Sign in to management.'});
  const kind=req.query?.kind;if(!Object.hasOwn(kinds,kind))return res.status(400).json({message:'Choose a valid record type.'});
  if(!['GET','POST','PATCH','DELETE'].includes(req.method))return res.status(405).json({message:'Method not allowed.'});
  if(req.method!=='GET'&&!['events','parties','results'].includes(kind))return res.status(405).json({message:'These records are read only.'});

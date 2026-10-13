@@ -21,6 +21,6 @@ function validateEvent(input){
  const label=String(s.label||'').trim();if(label.length>100)throw Error('Age group / session label must be under 100 characters.');
  return {id,date:s.date,time:s.time,capacity:s.capacity,label,minAge,maxAge};
  });sessions.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
- return {name,slug,description,image,status:input.status,audience:input.audience,allowedGroups:input.audience==='groups'?[...new Set(allowedGroups)]:[],memberPriceCents:input.memberPriceCents,nonMemberPriceCents:input.nonMemberPriceCents,sessions,date:sessions[0].date,time:sessions[0].time,capacity:sessions.reduce((n,s)=>n+s.capacity,0)};
+ return {name,slug,description,image,bookingFields:require('./booking-fields.cjs').validateFields(input.bookingFields),status:input.status,audience:input.audience,allowedGroups:input.audience==='groups'?[...new Set(allowedGroups)]:[],memberPriceCents:input.memberPriceCents,nonMemberPriceCents:input.nonMemberPriceCents,sessions,date:sessions[0].date,time:sessions[0].time,capacity:sessions.reduce((n,s)=>n+s.capacity,0)};
 }
 module.exports={validateEvent,slugify};
