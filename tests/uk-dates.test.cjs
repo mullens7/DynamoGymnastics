@@ -1,4 +1,6 @@
-const {test}=require('node:test'),assert=require('node:assert/strict'),{format,parse}=require('../public/uk-dates.js');
+const {test}=require('node:test'),assert=require('node:assert/strict'),{format,parse,mask}=require('../public/uk-dates.js');
 test('date-only values always display dd/mm/yyyy without timezone shifts',()=>{assert.equal(format('2013-06-22'),'22/06/2013');assert.equal(format('2026-01-02'),'02/01/2026');assert.equal(format('2024-02-29'),'29/02/2024');assert.equal(format(null),'');});
 test('UK date entry produces ISO storage values and rejects impossible or US dates',()=>{assert.equal(parse('22/06/2013'),'2013-06-22');assert.equal(parse('2/1/2026'),'2026-01-02');assert.equal(parse('29/02/2024'),'2024-02-29');for(const d of ['06/22/2013','31/04/2026','29/02/2026','01/13/2026'])assert.equal(parse(d),'');});
 test('timestamps are displayed using the UK calendar day',()=>assert.equal(format('2026-06-01T23:30:00Z'),'02/06/2026'));
+
+test('numeric date typing and pasted dates get UK separators automatically',()=>{assert.equal(mask('1'),'1');assert.equal(mask('12'),'12');assert.equal(mask('123'),'12/3');assert.equal(mask('1234'),'12/34');assert.equal(mask('12032015'),'12/03/2015');assert.equal(mask('12/03/2015'),'12/03/2015');assert.equal(mask('2/1/2020'),'02/01/2020');assert.equal(mask(''),'');assert.equal(parse(mask('29022024')),'2024-02-29');assert.equal(parse(mask('31042015')),'');});

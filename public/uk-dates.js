@@ -2,7 +2,8 @@
  const validISO=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
  function format(value){if(!value)return '';if(typeof value==='string'&&validISO(value))return value.slice(8,10)+'/'+value.slice(5,7)+'/'+value.slice(0,4);const date=new Date(value);return Number.isNaN(date.getTime())?'':new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'2-digit',year:'numeric'}).format(date);}
  function parse(value){const match=String(value||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(!match)return '';const iso=match[3]+'-'+match[2].padStart(2,'0')+'-'+match[1].padStart(2,'0');return validISO(iso)?iso:'';}
- const api={format,parse,validISO};root.DynamoDates=api;if(typeof module!=='undefined')module.exports=api;if(typeof document==='undefined')return;
+ function mask(value){const complete=parse(value);if(complete)return format(complete);const digits=String(value||'').replace(/\D/g,'').slice(0,8);return digits.slice(0,2)+(digits.length>2?'/'+digits.slice(2,4):'')+(digits.length>4?'/'+digits.slice(4):'');}
+ const api={format,parse,validISO,mask};root.DynamoDates=api;if(typeof module!=='undefined')module.exports=api;if(typeof document==='undefined')return;
  function enhance(input){if(input.dataset.ukDateReady)return;input.dataset.ukDateReady='true';
   const wrapper=document.createElement('span');wrapper.className='uk-date-field';input.before(wrapper);
   const text=document.createElement('input');text.type='text';text.inputMode='numeric';text.placeholder='dd/mm/yyyy';text.maxLength=10;text.autocomplete='off';text.className='uk-date-text';text.id=(input.id||'uk-date-'+Math.random().toString(36).slice(2))+'-display';text.setAttribute('aria-label',input.getAttribute('aria-label')||'Date (dd/mm/yyyy)');
@@ -14,7 +15,9 @@
   function sync(){text.value=format(input.value);text.required=input.required;text.disabled=input.disabled;text.readOnly=input.readOnly;button.disabled=input.disabled||input.readOnly;validate();}
   Object.defineProperty(input,'value',{configurable:true,get(){return descriptor.get.call(this);},set(value){descriptor.set.call(this,value);sync();}});
   function commit(){const iso=parse(text.value);descriptor.set.call(input,iso);validate();if(iso||!text.value)input.dispatchEvent(new Event('change',{bubbles:true}));}
-  text.addEventListener('input',()=>{descriptor.set.call(input,parse(text.value));validate();});text.addEventListener('change',commit);text.addEventListener('blur',()=>{const iso=parse(text.value);if(iso)text.value=format(iso);});
+  function maskEntry(){const raw=text.value,position=text.selectionStart??raw.length,atEnd=position===raw.length,digitCount=raw.slice(0,position).replace(/\D/g,'').length;text.value=mask(raw);let cursor=0,seen=0;while(cursor<text.value.length&&seen<digitCount){if(/\d/.test(text.value[cursor]))seen++;cursor++;}while(text.value[cursor]==='/')cursor++;text.setSelectionRange(atEnd?text.value.length:cursor,atEnd?text.value.length:cursor);descriptor.set.call(input,parse(text.value));validate();}
+  text.addEventListener('beforeinput',event=>{const p=text.selectionStart;if(p!==text.selectionEnd)return;if(event.inputType==='deleteContentBackward'&&p>0&&text.value[p-1]==='/'){event.preventDefault();text.setRangeText('',Math.max(0,p-2),p,'end');maskEntry();}else if(event.inputType==='deleteContentForward'&&text.value[p]==='/'){event.preventDefault();text.setRangeText('',p,Math.min(text.value.length,p+2),'end');maskEntry();}});
+  text.addEventListener('input',maskEntry);text.addEventListener('change',commit);text.addEventListener('blur',()=>{const iso=parse(text.value);if(iso)text.value=format(iso);});
   input.addEventListener('input',sync);input.addEventListener('change',sync);input.addEventListener('invalid',event=>{event.preventDefault();text.focus();text.reportValidity();});
   button.onclick=()=>{try{input.showPicker();}catch{text.focus();}};
   new MutationObserver(sync).observe(input,{attributes:true,attributeFilter:['min','max','disabled','readonly','required','value']});sync();
