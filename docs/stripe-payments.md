@@ -29,3 +29,9 @@ Applied to Dynamo Supabase during implementation. Existing imported bookings pre
 173 local tests passing, including mocked Stripe creation/refund/fulfilment tests. Database rollback suites exercise card/wallet split, expiry, replay, unpaid check-in/email rejection, over-refund/pending limits, Dashboard refunds, party/award payment and card move refunds under `service_role`.
 
 No real Stripe Checkout Sessions, charges or refunds were created by implementation tests. No real emails sent. A real paid checkout, bank decline/3DS and actual refund remain acceptance tests; configuration/read-only checks do not substitute for those tests.
+
+## Live read-only verification
+
+Production deployment `ec298da` passed 173 tests. Authenticated GET checks returned 200 for account, bookings, payments and Stripe health. The saved credentials access **Dynamo School of Gymnastics UK Ltd**: card payments capability active, charges/payouts enabled, onboarding submitted. An enabled Stripe webhook includes all nine required event types. A malformed signature is rejected with 400; no live signed payment event was generated.
+
+Temporary read-only test access removed. Zero real card checkouts and zero real card refunds exist following verification. The 55 imported bookings remain intact.
