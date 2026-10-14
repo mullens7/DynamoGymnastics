@@ -1,0 +1,3 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {parseUKOrderTime}=require('../server/order-date.cjs');const now=Date.parse('2026-10-15T00:00:00Z');
+test('order date converts UK summer and winter time accurately',()=>{assert.equal(parseUKOrderTime('2026-10-14','23:45',now),'2026-10-14T22:45:00.000Z');assert.equal(parseUKOrderTime('2026-01-14','23:45',now),'2026-01-14T23:45:00.000Z');});
+test('order date rejects future, impossible and nonexistent UK times',()=>{for(const [date,time] of [['2026-11-10','10:42'],['2026-02-30','10:00'],['2026-03-29','01:30'],['2026-10-14','24:01'],['14/10/2026','10:00']])assert.equal(parseUKOrderTime(date,time,now),null);});

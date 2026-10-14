@@ -4,3 +4,6 @@
 .booking-table .outstanding-price{color:#a25d11;font-weight:600}
 
 .booking-table .booking-created-cell{min-width:230px;max-width:330px;line-height:1.5}.booking-created-cell time{display:block}.booking-created-cell small{color:#62718a;margin-top:4px;font-weight:600}@media(max-width:700px){.booking-table .booking-created-cell{min-width:0;max-width:none}}
+
+.booking-date-review{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.confirm-order-date{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;font:inherit;font-size:12px;line-height:1.2;padding:6px 9px;min-height:30px;border:1px solid #b7cce5;border-radius:6px;color:#1656a4;background:#f2f7fd}.confirm-order-date:hover{background:#e6f0fc}@media(max-width:700px){.confirm-order-date{min-height:40px}}
+
