@@ -2,3 +2,5 @@
 #move-price-summary{margin-top:20px}.move-price-detail{background:#f5f8fc;padding:16px;border-radius:8px}.move-credit-note{padding:16px;background:#eef7f1;color:#21653a;border-radius:8px;font-weight:700}#move-difference-fields,#move-required-fields{min-width:0;margin:18px 0;border:1px solid #dce3ec;border-radius:8px;padding:16px}#move-difference-fields legend,#move-required-fields legend{font-weight:700;padding:0 6px}#move-difference-fields .check{white-space:normal;align-items:flex-start;line-height:1.5}#move-error{color:#b72c3b}
 
 .booking-table .outstanding-price{color:#a25d11;font-weight:600}
+
+.booking-table .booking-created-cell{min-width:230px;max-width:330px;line-height:1.5}.booking-created-cell time{display:block}.booking-created-cell small{color:#62718a;margin-top:4px;font-weight:600}@media(max-width:700px){.booking-table .booking-created-cell{min-width:0;max-width:none}}
