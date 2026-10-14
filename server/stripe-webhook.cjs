@@ -8,7 +8,7 @@ async function rawBody(req){
 }
 async function persist(env,event){
  // Immutable event IDs make delivery retries safe. Payment fulfilment is a separate stage.
- await store(env,'dynamo_stripe_events?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify({id:event.id,account_id:event.account,event_type:event.type,livemode:event.livemode,payload:event})});
+ await store(env,'dynamo_stripe_events?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({id:event.id,account_id:event.account,event_type:event.type,livemode:event.livemode,payload:event})});
 }
 function makeWebhookHandler(env=process.env,services={rawBody,persist}){return async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
