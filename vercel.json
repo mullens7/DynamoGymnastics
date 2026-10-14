@@ -55,6 +55,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/stripe-webhook/",
+      "destination": "/api/results/?kind=stripe-webhook"
+    },
+    {
       "source": "/",
       "has": [
         {
