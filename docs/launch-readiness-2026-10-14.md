@@ -25,6 +25,16 @@ No real emails were sent by the review, test or deployment process. DNS and the 
 - Private Dynamo tables/functions have no direct anonymous/authenticated grants. RLS is enabled. Supabase security advisor has informational notices for intentionally server-only tables, with no warning/error findings.
 - Existing imported event bookings remain intact. No real accounts, transactions or bookings were deleted by the checks.
 
+## Deployed checks
+
+- Engineering release `21451e83f765d3d239d79fc39ef28608b0a5bf30` reached Vercel READY (`dpl_5E22wEk8kALpULYNqGstWtqQoDSe`) and was assigned to https://dynamo-gymnastics.vercel.app/. The hosted build itself passed all 157 tests.
+- Public home, events, classes, parties, gallery, results, contact, policies, auth and management routes returned HTTP 200. Domain-routing script and security headers were present.
+- Public browser navigation loaded the three active events and Fun Sessions' six day/time rows, UK weekdays/dates and availability labels.
+- An expiring fictional Super Admin session verified the deployed login, management session, contacts/health, bookings and account APIs (HTTP 200, no-store). It did not request an OTP or send mail. Its session/account/staff fixture was removed.
+- Browser checks exposed Wednesday 28/10/2026's Under 7's session configured with maximum age 0. The child session and parent listing were corrected to age 7, matching the other Under 7's sessions; all nine existing bookings were retained. The earlier checkpoint remains the stated point-in-time capture before this correction.
+- All 55 imported event bookings remain present. Email queues have no pending/review work; manual delivery attempt table is empty after rollback tests. All concurrency/access fixture accounts were removed.
+- Runtime log review found Node/Vercel `url.parse()` deprecation warnings; no application exception was found in the inspected release window. This is a limited-window check, not continuous monitoring or proof of no future errors.
+
 ## Required before switching Wix
 
 1. Connect and test Stripe: successful/declined/cancelled payments, asynchronous webhooks, retries, full/partial refunds and reconciliation. Paid card checkout/refunds are currently intentionally unavailable.
