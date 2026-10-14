@@ -17,7 +17,7 @@ async function loadData(){loading=true;loadError='';loadFailures={};render();try
  job('staff','/api/admin-records/?kind=staff',v=>{next.staff=v.records;next.staffRoles=v.roles;});
  job('payments','/api/admin-records/?kind=payments',v=>next.payments=v.records.map(p=>({id:p.id,name:p.dynamo_accounts?.owner_name||p.dynamo_accounts?.email||'Account',date:p.created_at.slice(0,10),booking:p.dynamo_purchases?.details?.name||p.dynamo_purchases?.details?.description||'Transaction',amount:p.amount_pence/100,amountPence:p.amount_pence,refundedPence:p.refunded_pence||0,paymentMethod:p.provider_reference?.startsWith('manual:')?'manual':p.payment_method,purchaseId:p.purchase_id,status:p.status[0].toUpperCase()+p.status.slice(1)})));
  }else if(can('events.manage')){job('events','/api/admin-records/?kind=events',v=>next.events=v.records);job('bookings','/api/admin-records/?kind=event-bookings',v=>next.bookings=v.records);}
- if(can('attendees.checkin'))job('attendees','/api/admin-records/?kind=attendees',v=>next.attendees=v.records);
+ if(can('attendees.checkin'))job('attendees','/api/admin-records/?kind=attendees',v=>{next.attendees=v.records;next.checkinSessions=v.sessions||[];});
  if(can('parties.read'))job('upcoming-parties','/api/admin-records/?kind=upcoming-parties',v=>next.upcomingParties=v.records);
  const outcomes=await Promise.allSettled(jobs.map(async j=>{const body=await api(j.path);j.apply(body);}));
  outcomes.forEach((outcome,i)=>{if(outcome.status==='rejected')loadFailures[jobs[i].key]=outcome.reason.message;});
