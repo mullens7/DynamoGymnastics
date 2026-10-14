@@ -7,6 +7,8 @@ module.exports=async(req,res)=>{
  if(typeof key!=='string'||key.length<32||!equal(req.headers.authorization,'Bearer '+key))return res.status(401).json({ok:false});
  // A harmless probe verifies scheduler credentials and deployment without running a sync.
  if(req.body?.probe===true)return res.status(200).json({ok:true,configured:true});
+ try{await require('../server/stripe-payments.cjs').reconcile(process.env);}catch{console.warn('Stripe reconciliation unavailable');}
+ if(req.body?.paymentReconcile===true)return res.status(200).json({ok:true});
  const slot=scheduleSlot();if(!slot)return res.status(200).json({ok:true,skipped:true});
  try{const result=await performSync(process.env,{source:'scheduled',slot});return res.status(200).json({ok:true,duplicate:result.duplicate===true});}
  catch(error){console.warn('Scheduled member sync:',error.code||'AUTOMATION_FAILED');return res.status(error.code==='SYNC_BUSY'?409:502).json({ok:false,error:error.code||'AUTOMATION_FAILED'});}

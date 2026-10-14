@@ -24,6 +24,9 @@
     },
     "api/admin-records.js": {
       "maxDuration": 60
+    },
+    "api/results.js": {
+      "maxDuration": 60
     }
   },
   "redirects": [

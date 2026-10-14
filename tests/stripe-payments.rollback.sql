@@ -1,0 +1,27 @@
+begin;set local role service_role;
+do $test$
+declare owner uuid:=gen_random_uuid();gym uuid:=gen_random_uuid();event uuid:=gen_random_uuid();op uuid:=gen_random_uuid();op2 uuid:=gen_random_uuid();booking uuid;tx uuid;refund uuid:=gen_random_uuid();items jsonb;result jsonb;begin
+ insert into public.dynamo_accounts(id,email,owner_name,wallet_pence) values(owner,'card-fixture-'||owner||'@example.invalid','Card Fixture',200);
+ insert into public.dynamo_gymnasts(id,account_id,source_id,first_name,last_name,date_of_birth,medical_details) values(gym,owner,'manual:'||gym,'Card','Fixture','2020-01-01','None');
+ insert into public.dynamo_events(id,details) values(event,jsonb_build_object('name','Card fixture','date','2030-01-01','time','10:00','capacity',1,'status','Published','audience','everyone','memberPriceCents',1000,'nonMemberPriceCents',1000));
+ items:=jsonb_build_array(jsonb_build_object('kind','event','targetId',event,'gymnastId',gym,'answers','{}'::jsonb,'fieldDefinitions','[]'::jsonb));
+ result:=public.prepare_dynamo_card_checkout(owner,'basket',items,true,op,1000,'acct_fixture');booking:=(result->'result'->'bookings'->0->>'bookingId')::uuid;
+ if (result->>'card_pence')::int<>800 or (select wallet_pence from public.dynamo_accounts where id=owner)<>0 then raise exception 'Split wrong';end if;
+ if not (select payment_pending from public.dynamo_event_bookings where id=booking) or exists(select 1 from public.dynamo_confirmation_jobs where id=op) then raise exception 'Unpaid booking exposed';end if;
+ if (select sum(amount_pence) from public.dynamo_wallet_ledger where account_id=owner)<>-200 then raise exception 'Synthetic ledger survived';end if;
+ perform public.prepare_dynamo_card_checkout(owner,'basket',items,true,op,1000,'acct_fixture');if (select count(*) from public.dynamo_event_bookings where account_id=owner)<>1 then raise exception 'Duplicate reservation';end if;
+ begin perform public.check_in_dynamo_attendee(booking,true,owner);raise exception 'Unpaid check-in allowed';exception when others then if sqlerrm<>'PAYMENT_PENDING' then raise;end if;end;
+ begin perform public.claim_dynamo_manual_confirmation(booking,gen_random_uuid());raise exception 'Unpaid email allowed';exception when others then if sqlerrm<>'PAYMENT_PENDING' then raise;end if;end;
+ perform public.attach_dynamo_card_session(op,'cs_fixture',now()+interval '31 minutes');perform public.settle_dynamo_card_checkout(op,'cs_fixture',null,800,false);perform public.settle_dynamo_card_checkout(op,'cs_fixture',null,800,false);
+ if (select wallet_pence from public.dynamo_accounts where id=owner)<>200 or (select status from public.dynamo_event_bookings where id=booking)<>'Cancelled' then raise exception 'Expiry release wrong';end if;
+ result:=public.prepare_dynamo_card_checkout(owner,'basket',items,true,op2,1000,'acct_fixture');perform public.attach_dynamo_card_session(op2,'cs_fixture2',now()+interval '31 minutes');perform public.settle_dynamo_card_checkout(op2,'cs_fixture2','pi_fixture',800,true);perform public.settle_dynamo_card_checkout(op2,'cs_fixture2','pi_fixture',800,true);
+ if (select count(*) from public.dynamo_confirmation_jobs where id=op2)<>1 or exists(select 1 from public.dynamo_event_bookings where account_id=owner and status='Booked' and payment_pending) then raise exception 'Payment settlement wrong';end if;
+ select id into tx from public.dynamo_transactions where card_checkout_id=op2 and payment_method='card';
+ perform public.claim_dynamo_card_refund(tx,owner,300,'Fixture partial',refund);
+ begin perform public.claim_dynamo_card_refund(tx,owner,600,'Over refund',gen_random_uuid());raise exception 'Over-refund allowed';exception when others then if sqlerrm<>'REFUND_PENDING' then raise;end if;end;
+ perform public.settle_dynamo_card_refund(refund,'re_fixture','pending');if (select refunded_pence from public.dynamo_transactions where id=tx)<>0 then raise exception 'Pending refund treated as paid';end if;
+ perform public.settle_dynamo_card_refund(refund,'re_fixture','succeeded');perform public.settle_dynamo_card_refund(refund,'re_fixture','succeeded');
+ perform public.record_dynamo_external_refund('pi_fixture','re_externalfixture',100);perform public.record_dynamo_external_refund('pi_fixture','re_externalfixture',100);
+ if (select refunded_pence from public.dynamo_transactions where id=tx)<>400 or (select wallet_pence from public.dynamo_accounts where id=owner)<>0 then raise exception 'Refund duplicate or card refund credited wallet';end if;
+end $test$;
+rollback;

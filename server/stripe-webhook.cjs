@@ -10,7 +10,7 @@ async function persist(env,event){
  // Immutable event IDs make delivery retries safe. Payment fulfilment is a separate stage.
  await store(env,'dynamo_stripe_events?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({id:event.id,account_id:event.account,event_type:event.type,livemode:event.livemode,payload:event})});
 }
-function makeWebhookHandler(env=process.env,services={rawBody,persist}){return async(req,res)=>{
+function makeWebhookHandler(env=process.env,services={rawBody,persist,processEvent:require('./stripe-payments.cjs').processEvent}){return async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  if(req.method!=='POST'){res.setHeader('Allow','POST');return res.status(405).json({error:'METHOD_NOT_ALLOWED'});}
  if(typeof req.headers['stripe-signature']!=='string')return res.status(400).json({error:'INVALID_SIGNATURE'});
@@ -23,7 +23,7 @@ function makeWebhookHandler(env=process.env,services={rawBody,persist}){return a
  if(!live&&!test)return res.status(503).json({error:'STRIPE_NOT_CONFIGURED'});
  if(event.account!==env.STRIPE_CONNECTED_ACCOUNT_ID||event.livemode!==Boolean(live)||!TYPES.has(event.type))return res.status(200).json({received:true,ignored:true});
  if(!/^evt_[A-Za-z0-9]+$/.test(event.id||'')||event.object!=='event'||!event.data?.object)return res.status(400).json({error:'INVALID_EVENT'});
- try{await services.persist(env,event);return res.status(200).json({received:true});}
+ try{await services.persist(env,event);if(services.processEvent)await services.processEvent(env,event);return res.status(200).json({received:true});}
  catch{console.warn('Stripe webhook: durable event receipt failed');return res.status(503).json({error:'EVENT_STORAGE_UNAVAILABLE'});}
 };}
 module.exports={makeWebhookHandler,rawBody,persist,TYPES};
