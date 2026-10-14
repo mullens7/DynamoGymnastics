@@ -18,8 +18,8 @@ async function unlockBasket(renderAfter=true){if(checkoutBusy)return false;if(!a
 
 
 function walletApplied(total,available,useCredit){let applied=useCredit?Math.min(total,available):0;const remaining=total-applied;if(remaining>0&&remaining<30)applied=Math.max(0,total-30);return applied;}
-function walletCheckoutNeedsRefresh(user,checkout){return checkout?.state==='open'&&checkout.credit===true&&walletApplied(checkout.total_pence,Math.max(0,user.wallet_pence||0)+checkout.wallet_pence,true)!==checkout.wallet_pence;}
-function basketPayment(total,user,checkout,useCredit){const available=Math.max(0,user.wallet_pence||0)+(checkout?.wallet_pence||0),applied=checkout?(checkout.wallet_pence||0):walletApplied(total,available,useCredit);return {available,applied,remaining:checkout?(checkout.card_pence??total):Math.max(0,total-applied)};}
+function walletCheckoutNeedsRefresh(user,checkout){return checkout?.state==='open'&&checkout.credit===true&&walletApplied(checkout.total_pence,Math.max(0,user.wallet_pence||0),true)!==checkout.wallet_pence;}
+function basketPayment(total,user,checkout,useCredit){const available=Math.max(0,user.wallet_pence||0),applied=checkout?(checkout.wallet_pence||0):walletApplied(total,available,useCredit);return {available,applied,remaining:checkout?(checkout.card_pence??total):Math.max(0,total-applied)};}
 function walletSummary(total){const p=basketPayment(activeCheckout?.total_pence??total,account.user,activeCheckout,useWalletCredit);return (p.available>0?'<p>Wallet credit: '+money(p.available)+'</p><label class="check"><input id="use-credit" type="checkbox" '+(useWalletCredit?'checked':'')+'>Use wallet credit</label>':'')+(p.applied>0?'<p>Wallet credit applied: '+money(p.applied)+'</p>':'')+'<p><strong>Remaining to pay: '+money(p.remaining)+'</strong></p>';}
 async function refreshWallet(){if(walletRefreshing||checkoutBusy||$('#dialog')?.open||document.hidden)return;walletRefreshing=true;try{await load(false);}finally{walletRefreshing=false;}}
 window.addEventListener?.('focus',refreshWallet);
