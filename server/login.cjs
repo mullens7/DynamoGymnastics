@@ -13,7 +13,7 @@ function makeLoginHandler(env=process.env,services={rpc,store,sendEmail,currentU
  if(req.method==='GET'){const user=await services.currentUser(req,env);return res.status(user?200:401).json(user?{user}:{message:'Please log in.'});}
  if(!['POST','DELETE'].includes(req.method))return res.status(405).json({message:'Method not allowed.'});
  if(!sameOrigin(req))return res.status(403).json({message:'Open the Dynamo website to log in.'});
- if(req.method==='DELETE'){await services.signOut(req,env);res.setHeader('Set-Cookie',cookie('',0));return res.status(200).json({ok:true});}
+ if(req.method==='DELETE'){await services.signOut(req,env);res.setHeader('Set-Cookie',cookie('',0,req));return res.status(200).json({ok:true});}
  if(req.body?.action==='request'){
   const address=String(req.body.email||'').trim().toLowerCase();if(!email(address))return res.status(400).json({message:'Enter a valid email address.'});
   const id=randomUUID(),code=String(randomInt(0,10000)).padStart(4,'0');
@@ -28,7 +28,7 @@ function makeLoginHandler(env=process.env,services={rpc,store,sendEmail,currentU
   const {challengeId,code}=req.body;if(!uuid(challengeId)||!/^\d{4}$/.test(code||''))return res.status(400).json({message:'Enter the four-digit code.'});
   const token=randomBytes(32).toString('hex');const result=await services.rpc(env,'verify_dynamo_code',{p_id:challengeId,p_hash:digest(env,challengeId+':'+code),p_session_hash:hash(token)});
   if(!result.ok)return res.status(400).json({message:result.error==='OTP_INCORRECT'?'That code is incorrect. Please try again.':'That code has expired or has already been used. Request a new code.'});
-  res.setHeader('Set-Cookie',cookie(token));return res.status(200).json({ok:true});
+  res.setHeader('Set-Cookie',cookie(token,43200,req));return res.status(200).json({ok:true});
  }
  return res.status(400).json({message:'Choose a login action.'});
  }catch{return res.status(503).json({message:'Login is temporarily unavailable. Please try again shortly.'});}

@@ -12,7 +12,7 @@ async function loadData(){loading=true;loadError='';loadFailures={};render();try
  const next={classes:[],contacts:[],results:[],events:[],parties:[],payments:[],bookings:[],staff:[],staffRoles:[],attendees:[],upcomingParties:[]};
  const jobs=[];const job=(key,path,apply)=>jobs.push({key,path,apply});
  if(can('super_admin')){
- job('contacts','/api/member-contacts/',v=>{updateLastSynced(v.lastSyncedAt);next.contacts=mapContacts(v.accounts);});
+ job('contacts','/api/member-contacts/',v=>{updateLastSynced(v.lastSyncedAt);next.contacts=mapContacts(v.accounts);next.health=v.health;});
  for(const kind of ['events','parties','bookings','results','classes'])job(kind,'/api/admin-records/?kind='+kind,v=>next[kind]=v.records);
  job('staff','/api/admin-records/?kind=staff',v=>{next.staff=v.records;next.staffRoles=v.roles;});
  job('payments','/api/admin-records/?kind=payments',v=>next.payments=v.records.map(p=>({id:p.id,name:p.dynamo_accounts?.owner_name||p.dynamo_accounts?.email||'Account',date:p.created_at.slice(0,10),booking:p.dynamo_purchases?.details?.name||p.dynamo_purchases?.details?.description||'Transaction',amount:p.amount_pence/100,amountPence:p.amount_pence,refundedPence:p.refunded_pence||0,paymentMethod:p.provider_reference?.startsWith('manual:')?'manual':p.payment_method,purchaseId:p.purchase_id,status:p.status[0].toUpperCase()+p.status.slice(1)})));
@@ -71,3 +71,4 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
 fetch('/api/login/',{credentials:'same-origin',cache:'no-store',redirect:'error'}).then(async response=>{if(!response.ok)return;const {user}=await response.json();document.querySelectorAll('[data-staff-nav]').forEach(link=>link.hidden=!(user.websiteAdmin||user.permissions?.includes('resources.read')));}).catch(()=>{});
 
 document.querySelectorAll("[data-menu-group]").forEach(group=>group.addEventListener("toggle",()=>{if(group.open)document.querySelectorAll("[data-menu-group]").forEach(other=>{if(other!==group)other.open=false;});}));
+

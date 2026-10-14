@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /api/
+Disallow: /auth/
+Disallow: /account/
+Disallow: /manage/
+Disallow: /book/
+Disallow: /staff/
+Disallow: /awards/
