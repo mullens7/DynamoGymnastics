@@ -76,7 +76,7 @@ async function processEvent(env,event,services={all,rpc,store,stripe}){
  const linked=pi?await services.all(env,'dynamo_card_checkouts?select=*&payment_intent=eq.'+pi+'&connected_account=eq.'+event.account):[];
  if(!linked.length)return done();const client=services.stripe(env);let after;for(let page=0;page<10;page++){const refunds=await client.refunds.list({charge:obj.id,limit:100,...(after?{starting_after:after}:{})},options(env));for(const r of refunds.data){if(r.status!=='succeeded')continue;if(r.metadata?.site===SITE&&uuid(r.metadata?.refundId))await processEvent(env,{...event,type:'refund.updated',data:{object:r}},{...services,store:async(e,p,o)=>p==='dynamo_stripe_events?id=eq.'+event.id?[]:services.store(e,p,o)});else await services.rpc(env,'record_dynamo_external_refund',{p_payment:pi,p_provider:r.id,p_amount:r.amount});}if(!refunds.has_more)break;after=refunds.data.at(-1)?.id;if(page===9)throw Error('REFUND_RECONCILIATION_REQUIRED');}
  }else if(event.type==='payment_intent.payment_failed'&&obj.metadata?.site===SITE&&uuid(obj.metadata?.orderId)){
- const order=await getOrder(env,obj.metadata.orderId,null,services);if(!['creating','open'].includes(order.state))return done();await services.store(env,'dynamo_transactions?card_checkout_id=eq.'+order.id+'&payment_method=eq.card',{method:'PATCH',body:JSON.stringify({status:'declined'})});
+ const order=await getOrder(env,obj.metadata.orderId,null,services);if(order.state==='paid')return done();await services.store(env,'dynamo_transactions?card_checkout_id=eq.'+order.id+'&payment_method=eq.card',{method:'PATCH',body:JSON.stringify({status:'declined',payment_attempt_failed:true})});
  }
  await done();
 }
