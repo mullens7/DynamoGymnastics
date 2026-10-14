@@ -1,6 +1,6 @@
 # Stripe card checkout and refunds
 
-Implemented for Dynamo's configured connected account using direct charges and hosted Checkout. No additional application fee is set in website code. Existing Stripe platform/account pricing settings still apply.
+Implemented for Dynamo's configured connected account using direct charges and hosted Checkout. New card checkouts collect a Service fee of 2.5% + 20p for Mullens Ltd, separately from Stripe processing fees. The fee applies once to the card remainder, is rounded to the nearest penny, and is deducted from Dynamo’s takings without increasing the customer’s booking total. Existing checkout sessions retain their original fee snapshot. Application fees remain retained on refunds under the existing default refund policy.
 
 - Event baskets (including session options/packages), birthday parties and awards support card payment and partial wallet credit.
 - Prices, age, membership, required fields, medical details and party details are validated in the existing database checkout transaction. Bookings are reserved before opening Stripe.
