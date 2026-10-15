@@ -11,17 +11,19 @@ function columnLabel(label){
 }
 async function ensureExportColumns(page,env){
  const labels=requiredColumns(env);if(!labels.length)throw new RosterError('ROSTER_MAPPING_REQUIRED');
- let currentColumn;
+ let currentColumn,step='opening Manage columns';
  try{
   await page.getByRole('button',{name:'Manage columns',exact:true}).click({timeout:10000});
-  const dialog=page.getByRole('dialog',{name:'Manage table columns',exact:true});
+  step='finding the Manage Table Columns panel';
+  const dialog=page.locator('.ant-drawer-content:visible, .ant-modal-content:visible').filter({hasText:/manage\s+table\s+columns/i}).last();
   await dialog.waitFor({state:'visible',timeout:10000});
   let changed=false;
   for(const label of labels){
-   currentColumn=label;const matcher=columnLabel(label);
+   currentColumn=label;step='checking existing columns';const matcher=columnLabel(label);
    // Existing selected columns are plain rows. Leave their order and all
    // unrelated selections intact; the searchable selector adds missing rows.
    if(await dialog.getByText(matcher,{exact:true}).count())continue;
+   step='adding a missing column';
    const add=dialog.locator('.ant-select').filter({hasText:'Add new column...'});
    await add.click({timeout:5000});
    await add.locator('input[role="combobox"]').fill(label.replace(/^\s*\*\s*/,''),{timeout:5000});
@@ -29,12 +31,13 @@ async function ensureExportColumns(page,env){
    await option.click({timeout:5000});
    await dialog.getByText(matcher,{exact:true}).waitFor({state:'visible',timeout:5000});changed=true;
   }
+  step=changed?'saving the column layout':'closing the unchanged column layout';
   await dialog.getByRole('button',{name:changed?'Save':'Cancel',exact:true}).click({timeout:5000});
   await dialog.waitFor({state:'hidden',timeout:10000});
   return {changed,columns:labels.length};
  }catch{
   const error=new RosterError('COLUMN_SETUP_FAILED');error.stage='contacts';
-  error.validation={reason:'The required export columns could not be confirmed in Thrive4 Manage columns. Existing membership records were preserved.',...(currentColumn?{column:currentColumn}:{})};throw error;
+  error.validation={reason:'Column setup stopped while '+step+'. Existing membership records were preserved.',...(currentColumn?{column:currentColumn}:{})};throw error;
  }
 }
 module.exports={requiredColumns,columnLabel,ensureExportColumns};

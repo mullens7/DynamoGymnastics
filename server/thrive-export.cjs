@@ -1,5 +1,6 @@
 const {createHash}=require('node:crypto');
 const {ensureExportColumns}=require('./thrive-columns.cjs');
+const {RosterError}=require('./member-roster.cjs');
 const MAX_BYTES=15*1024*1024;
 class SyncError extends Error {constructor(code,stage){super(code);this.code=code;this.stage=stage;}}
 function configuration(env){
@@ -49,7 +50,7 @@ async function captureDiagnostic(page,reason){
  try{
   const route=new URL(page.url()).hash.split('?')[0].replace(/\/$/,'');
   if(route!=='#/app/business/crm')return {...diagnostic,screenshotUnavailable:'A screenshot is available only after the Contacts page opens.'};
-  const screenshot=await page.screenshot({type:'jpeg',quality:65,timeout:3000,mask:[page.locator('table,[role="rowgroup"],[role="row"],.ag-row,.k-grid-content'),page.locator('input,textarea,[contenteditable="true"]'),page.locator('[class*="avatar"],[class*="profile"],[class*="user-name"]')]});
+  const screenshot=await page.screenshot({type:'jpeg',quality:65,timeout:3000,mask:[page.locator('.ant-table-wrapper,table,[role="rowgroup"],[role="row"],.ag-row,.k-grid-content'),page.locator('input,textarea,[contenteditable="true"]'),page.locator('[class*="avatar"],[class*="profile"],[class*="user-name"]')]});
   if(screenshot.length<750000)diagnostic.image=screenshot.toString('base64');
   else diagnostic.screenshotUnavailable='The masked screenshot exceeded the size limit.';
  }catch{diagnostic.screenshotUnavailable='The browser could not capture a masked screenshot.';}
@@ -127,7 +128,7 @@ async function exportContacts(env,{chromium,includeWorkbook=false,captureDiagnos
    console.info('Thrive export controls:',JSON.stringify(summary));
   }
   // Playwright errors may contain credential-bearing connection URLs. Never pass them through.
-  if(error instanceof SyncError){error.check=check;error.diagnostic=diagnostic;throw error;}
+  if(error instanceof SyncError||error instanceof RosterError){error.check=check;error.diagnostic=diagnostic;throw error;}
   if(error?.name==='TimeoutError'){const failure=new SyncError('STEP_TIMEOUT',stage);failure.check=check;failure.diagnostic=diagnostic;throw failure;}
   if(stage==='connect'&&/Unexpected server response: (401|403)/.test(String(error?.message)))throw new SyncError('BROWSER_CONNECTION_REJECTED',stage);
   const failure=new SyncError('AUTOMATION_FAILED',stage);failure.check=check;failure.diagnostic=diagnostic;throw failure;

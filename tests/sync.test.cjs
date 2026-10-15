@@ -58,3 +58,10 @@ test('masked diagnostics capture Contacts only, restrict size and survive screen
  page.url=()=> 'https://club.thrive4.com/#/login';result=await captureDiagnostic(page,'Login failed');assert.equal(calls,1);assert.equal(result.image,undefined);assert.ok(result.screenshotUnavailable);
  page.url=()=> 'https://club.thrive4.com/#/app/business/crm';page.screenshot=async()=>{throw Error('private DOM');};result=await captureDiagnostic(page,'Download failed');assert.equal(result.image,undefined);assert.equal(JSON.stringify(result).includes('private DOM'),false);
 });
+test('browser cleanup preserves trusted column-setup errors and safe validation detail',async()=>{
+ const {exportContacts}=require('../server/thrive-export.cjs'),{RosterError}=require('../server/member-roster.cjs');let closed=false;
+ const failure=new RosterError('COLUMN_SETUP_FAILED');failure.stage='contacts';failure.validation={reason:'Column setup stopped while finding the Manage Table Columns panel.'};
+ const page={setViewportSize:async()=>{},setDefaultTimeout(){},setDefaultNavigationTimeout(){},goto:async()=>{throw failure},url:()=> 'https://club.thrive4.com/#/login'};
+ const browser={contexts:()=>[{newPage:async()=>page}],close:async()=>{closed=true;}};
+ await assert.rejects(exportContacts({BROWSERLESS_TOKEN:'fixture',THRIVE_EMAIL:'fixture@example.invalid',THRIVE_PASSWORD:'fixture'},{chromium:{connectOverCDP:async()=>browser}}),error=>{assert.equal(error.code,'COLUMN_SETUP_FAILED');assert.equal(error.stage,'contacts');assert.match(error.validation.reason,/finding/);assert.ok(error.diagnostic);return true;});assert.equal(closed,true);
+});

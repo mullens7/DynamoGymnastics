@@ -7,7 +7,7 @@ function fixture(initial,{missing}={}){
  const row=matcher=>({count:async()=>selected.filter(value=>match(matcher,value)).length,waitFor:async()=>assert.ok(selected.some(value=>match(matcher,value)))});
  const add={click:async()=>actions.push('open selector'),locator:()=>({fill:async value=>query=value})};
  const dialog={waitFor:async()=>{},getByText:row,locator:selector=>{assert.equal(selector,'.ant-select');return {filter:()=>add};},getByRole:(role,{name})=>({click:async()=>actions.push(name)})};
- const page={getByRole:(role,{name})=>role==='dialog'?(assert.equal(name,'Manage table columns'),dialog):{click:async()=>actions.push(name)},locator:selector=>{assert.equal(selector,'.ant-select-dropdown:visible');return {getByText:matcher=>({click:async()=>{if(query===missing)throw Error('private DOM/token');option=query;assert.ok(matcher.test(option));selected.push(option);actions.push('add '+option);}})};}};
+ const page={getByRole:(role,{name})=>role==='dialog'?(assert.equal(name,'Manage table columns'),dialog):{click:async()=>actions.push(name)},locator:selector=>{if(selector.includes('.ant-drawer-content'))return {filter:({hasText})=>{assert.ok(hasText.test('Manage Table Columns'));return {last:()=>dialog};}};assert.equal(selector,'.ant-select-dropdown:visible');return {getByText:matcher=>({click:async()=>{if(query===missing)throw Error('private DOM/token');option=query;assert.ok(matcher.test(option));selected.push(option);actions.push('add '+option);}})};}};
  return {page,selected,actions};
 }
 test('column labels tolerate case, whitespace and optional custom-field star; automatic names are not selected',()=>{
