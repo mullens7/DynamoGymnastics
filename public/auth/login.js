@@ -11,21 +11,22 @@ digits.forEach((input,index)=>{
 async function request(body){const response=await fetch('/api/login/',{method:'POST',credentials:'same-origin',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok)throw Error(data.message||'Please try again.');return data;}
 function destination(user){
  const live=['dynamogymnastics.co.uk','www.dynamogymnastics.co.uk','auth.dynamogymnastics.co.uk','manage.dynamogymnastics.co.uk'].includes(location.hostname);
- const fallback=live?'https://dynamogymnastics.co.uk/':'/';
+ const home=user?.isDeveloper?'/developer/':'/';const fallback=live?'https://dynamogymnastics.co.uk'+home:home;
  const next=new URLSearchParams(location.search).get('next');if(!next)return fallback;
  let url;try{url=new URL(next,live?'https://dynamogymnastics.co.uk':location.origin);}catch{return fallback;}
  const trusted=url.origin===location.origin||live&&url.protocol==='https:'&&['dynamogymnastics.co.uk','www.dynamogymnastics.co.uk','manage.dynamogymnastics.co.uk'].includes(url.host);
  if(!trusted)return fallback;
+ if(user?.isDeveloper&&['/','/account/'].includes(url.pathname))return fallback;
  if(url.pathname==='/manage/'&&user&&!user.managementAccess)url.pathname=user.permissions?.includes('resources.read')?'/staff/':'/account/';
  const customEventPath=/^\/[a-z0-9]+(?:-[a-z0-9]+)*\/$/.test(url.pathname)&&!['/auth/','/api/','/assets/'].includes(url.pathname);
- const allowed=customEventPath||/^(?:\/events\/[a-z0-9]+(?:-[a-z0-9]+)*\/)$/.test(url.pathname)||['/','/awards/','/awards/gyminis/','/awards/recreational/','/events/','/results/','/parties/','/gallery/','/classes/','/terms/','/policies/','/contact-us/','/account/','/book/','/manage/','/manage/party-print/','/staff/'].includes(url.pathname);
+ const allowed=customEventPath||/^(?:\/events\/[a-z0-9]+(?:-[a-z0-9]+)*\/)$/.test(url.pathname)||['/','/developer/','/awards/','/awards/gyminis/','/awards/recreational/','/events/','/results/','/parties/','/gallery/','/classes/','/terms/','/policies/','/contact-us/','/account/','/book/','/manage/','/manage/party-print/','/staff/'].includes(url.pathname);
  if(!allowed)return fallback;
  return live?'https://dynamogymnastics.co.uk'+url.pathname+url.search+url.hash:url.pathname+url.search+url.hash;
 }
 
 async function sendCode(){const data=await request({action:'request',email});challengeId=data.challengeId;resendAt=Date.now()+60000;clearInterval(resendTimer);resendTimer=setInterval(updateResend,250);updateResend();$('#email-form').hidden=true;$('#code-form').hidden=false;$('#intro').textContent='We sent a code to '+email+'.';clearCode();digits[0].focus();$('#status').textContent='';}
 $('#email-form').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;$('#status').textContent='';email=$('#email').value.trim();try{await sendCode();}catch(error){$('#status').textContent=error.message;}finally{button.disabled=false;}};
-$('#code-form').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{const data=await request({action:'verify',challengeId,code:digits.map(input=>input.value).join('')});clearCode();location.assign(destination(data.user));}catch(error){$('#status').textContent=error.message;}finally{button.disabled=false;}};
+$('#code-form').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{const data=await request({action:'verify',challengeId,code:digits.map(input=>input.value).join('')});clearCode();const session=await fetch('/api/login/',{credentials:'same-origin',cache:'no-store',redirect:'error'});const user=session.ok?(await session.json()).user:null;location.assign(destination(user));}catch(error){$('#status').textContent=error.message;}finally{button.disabled=false;}};
 $('#change').onclick=()=>{$('#email-form').hidden=false;$('#code-form').hidden=true;$('#intro').textContent='Enter your email address. We’ll send you a four-digit code.';$('#status').textContent='';$('#email').focus();};
 $('#resend').onclick=async()=>{if(sending||Date.now()<resendAt)return;sending=true;updateResend();try{await sendCode();}catch(error){$('#status').textContent=error.message;}finally{sending=false;updateResend();}};
 

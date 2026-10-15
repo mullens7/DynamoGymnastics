@@ -16,6 +16,7 @@ test('production login returns to the correct portal and rejects external redire
  const source=fs.readFileSync('public/auth/login.js','utf8');const fn=source.slice(source.indexOf('function destination'),source.indexOf('async function sendCode'));
  const context={URL,URLSearchParams,location:{hostname:'auth.dynamogymnastics.co.uk',origin:'https://auth.dynamogymnastics.co.uk',search:''}};vm.createContext(context);vm.runInContext(fn,context);
  assert.equal(context.destination(),'https://dynamogymnastics.co.uk/');
+ assert.equal(context.destination({isDeveloper:true}),'https://dynamogymnastics.co.uk/developer/');
  context.location.search='?next='+encodeURIComponent('/manage/');assert.equal(context.destination({managementAccess:true}),'https://dynamogymnastics.co.uk/manage/');
  assert.equal(context.destination({managementAccess:false,permissions:['resources.read']}),'https://dynamogymnastics.co.uk/staff/');
  context.location.search='?next='+encodeURIComponent('https://dynamogymnastics.co.uk.attacker.invalid/manage/');assert.equal(context.destination(),'https://dynamogymnastics.co.uk/');

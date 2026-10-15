@@ -6,7 +6,7 @@ function validateEvent(input){
  const name=String(input.name||'').trim(),slug=input.slug===undefined?slugify(name):String(input.slug).trim();
  if(!name||name.length>120)throw Error('Enter an event name of up to 120 characters.');
  if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)||slug.length>100||['detail','events','index'].includes(slug))throw Error('Use a link containing lowercase letters, numbers and hyphens.');
- if(input.rootLink===true&&['api','assets','auth','manage','account','book','staff','awards','events','results','gallery','classes','parties','contact-us','terms','policies','legal','octoberhalfterm','index','detail'].includes(slug))throw Error('That link is reserved for a website page. Choose another.');
+ if(input.rootLink===true&&['developer','api','assets','auth','manage','account','book','staff','awards','events','results','gallery','classes','parties','contact-us','terms','policies','legal','octoberhalfterm','index','detail'].includes(slug))throw Error('That link is reserved for a website page. Choose another.');
  const description=String(input.description||'').trim();if(description.length>10000)throw Error('Description must be under 10,000 characters.');
  if(!['Draft','Published'].includes(input.status)||!['everyone','members','groups'].includes(input.audience))throw Error('Choose a status and audience.');
  const allowedGroups=input.allowedGroups||[];if(!Array.isArray(allowedGroups)||allowedGroups.some(g=>!Object.hasOwn(groups,g))||(input.audience==='groups'&&!allowedGroups.length))throw Error('Choose valid member groups.');

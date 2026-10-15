@@ -3,7 +3,7 @@ import {cpSync,rmSync,existsSync,mkdirSync,readFileSync,writeFileSync,readdirSyn
 if(!existsSync('public/index.html')) throw new Error('Homepage missing');
 rmSync('dist',{recursive:true,force:true});
 cpSync('public','dist',{recursive:true});
-function prepareDomains(path){for(const entry of readdirSync(path,{withFileTypes:true})){const file=path+'/'+entry.name;if(entry.isDirectory())prepareDomains(file);else if(entry.name.endsWith('.html')){const html=readFileSync(file,'utf8');writeFileSync(file,html.replace('</body>','<script src="/domain-routes.js" defer></script></body>'));}}}
+function prepareDomains(path){for(const entry of readdirSync(path,{withFileTypes:true})){const file=path+'/'+entry.name;if(entry.isDirectory())prepareDomains(file);else if(entry.name.endsWith('.html')){const html=readFileSync(file,'utf8');writeFileSync(file,html.replace('</body>','<link rel="stylesheet" href="/developer-support.css"><script src="/developer-support.js" defer></script><script src="/domain-routes.js" defer></script></body>'));}}}
 prepareDomains('dist');
 cpSync('node_modules/heic2any/dist/heic2any.min.js','dist/assets/heic2any-0.0.4.min.js');
 cpSync('node_modules/heic2any/LICENSE.md','dist/assets/heic2any-LICENSE.md');
