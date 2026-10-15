@@ -1,3 +1,12 @@
+function showSyncFailureDetails(error){
+ const panel=$('#sync-diagnostic');panel.textContent='';
+ const add=text=>{const line=document.createElement('p');line.className='help';line.textContent=text;panel.append(line);};
+ if(error.organisation)add('Organisation: '+error.organisation);
+ if(error.stage)add('Step: '+error.stage+(error.code?' · '+error.code:''));
+ if(error.validation)add((error.validation.row?'Excel row '+error.validation.row+' · ':'')+(error.validation.column?error.validation.column+': ':'')+error.validation.reason);
+ if(error.diagnostic?.image){const detail=document.createElement('details'),summary=document.createElement('summary'),img=document.createElement('img');summary.textContent='Show masked Thrive4 screenshot';img.alt='Thrive4 Contacts page at the point the export stopped; contact details masked';img.src='data:image/jpeg;base64,'+error.diagnostic.image;img.style.cssText='display:block;width:100%;height:auto;margin-top:12px;border:1px solid #dce4ed;border-radius:8px';detail.append(summary,img);panel.append(detail);if(error.stage==='validation')add('The export downloaded successfully. This screenshot shows the Contacts page before the browser closed; the Excel validation details above explain why the sync stopped.');}
+ else if(error.diagnostic?.screenshotUnavailable)add(error.diagnostic.screenshotUnavailable);
+}
 let syncRunning=false;
 $('#dialog').addEventListener('cancel',event=>{if(syncRunning)event.preventDefault();});
 document.querySelector('.sync-member').addEventListener('click',()=>{
@@ -13,10 +22,10 @@ document.querySelector('.sync-member').addEventListener('click',()=>{
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),305000);
   try{
    const response=await fetch('/api/sync-members/',{method:'POST',credentials:'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'sync',pin:code}),cache:'no-store',redirect:'error'});
-   if(!response.ok){let error;try{error=await response.json();}catch{}if(response.status===401){signedIn=false;loaded=false;render();}throw Object.assign(new Error(error?.message||'The sync could not be started.'),{code:error?.error});}
+   if(!response.ok){let error;try{error=await response.json();}catch{}if(response.status===401){signedIn=false;loaded=false;render();}throw Object.assign(new Error(error?.message||'The sync could not be started.'),{...error,code:error?.error});}
    if(!response.body)throw Error('The progress connection is unavailable.');
    const reader=response.body.getReader(),decoder=new TextDecoder();let pending='',result;
-   const receive=line=>{if(!line.trim())return;const item=JSON.parse(line);if(item.type==='progress'){status.textContent='Syncing members…';showProgress(item);}if(item.type==='error')throw Error(item.message);if(item.type==='complete')result=item.result;};
+   const receive=line=>{if(!line.trim())return;const item=JSON.parse(line);if(item.type==='progress'){status.textContent='Syncing members…';showProgress(item);}if(item.type==='error')throw Object.assign(new Error(item.message),{...item,code:item.error});if(item.type==='complete')result=item.result;};
    while(true){const {done,value}=await reader.read();if(done)break;pending+=decoder.decode(value,{stream:true});let split;while((split=pending.indexOf('\n'))!==-1){receive(pending.slice(0,split));pending=pending.slice(split+1);}}
    pending+=decoder.decode();if(pending.trim())receive(pending);
    if(!result)throw Error('The connection ended before the sync result was confirmed. Refresh Contacts before trying again.');
@@ -26,7 +35,7 @@ document.querySelector('.sync-member').addEventListener('click',()=>{
    status.textContent=`${result.unchanged?'Membership unchanged.':'Sync completed.'} ${result.accounts} accounts, ${result.members} member accounts, ${result.staff} staff accounts.${result.organisations?.length?' Synced: '+result.organisations.map(o=>o.name).join(' and ')+'.':''} No emails sent.${loaded?'':' Use Refresh to reload the saved records.'}`;
    if(result.unmappedRows){const panel=$('#sync-diagnostic');for(const item of result.unmappedClasses||[]){const line=document.createElement('p');line.className='help';line.textContent=`Unrecognised class: ${item.label} (${item.rows} rows)`;panel.append(line);}}
    start.hidden=true;pin.hidden=true;$('label[for="sync-pin"]').hidden=true;close.textContent='Close';
-  }catch(error){status.classList.add('sync-error');status.setAttribute('role','alert');status.textContent=error.code==='PIN_INCORRECT'?'Incorrect code. Please enter the correct four-digit sync code and try again.':error.name==='AbortError'?'The sync result has not returned yet. Refresh Contacts before trying again.':error.message||'The sync could not be completed.';$('#sync-step').textContent='Sync stopped';if(['PIN_INCORRECT','PIN_LOCKED','PIN_NOT_CONFIGURED'].includes(error.code))$('#sync-progress-wrap').hidden=true;if(error.code==='PIN_INCORRECT')pin.setAttribute('aria-invalid','true');}
+  }catch(error){showSyncFailureDetails(error);status.classList.add('sync-error');status.setAttribute('role','alert');status.textContent=error.code==='PIN_INCORRECT'?'Incorrect code. Please enter the correct four-digit sync code and try again.':error.name==='AbortError'?'The sync result has not returned yet. Refresh Contacts before trying again.':error.message||'The sync could not be completed.';$('#sync-step').textContent='Sync stopped';if(['PIN_INCORRECT','PIN_LOCKED','PIN_NOT_CONFIGURED'].includes(error.code))$('#sync-progress-wrap').hidden=true;if(error.code==='PIN_INCORRECT')pin.setAttribute('aria-invalid','true');}
   finally{clearTimeout(timeout);cancelAnimationFrame(animation);syncRunning=false;pin.disabled=false;start.disabled=false;close.disabled=false;if(pin.getAttribute('aria-invalid')==='true')pin.focus();}
  });
 });

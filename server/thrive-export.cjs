@@ -42,9 +42,21 @@ async function clickExportControl(control){
   console.info('Thrive export click: viewport geometry fallback');
  }
 }
-async function exportContacts(env,{chromium,includeWorkbook=false,onProgress=()=>{}}={}){
+async function captureDiagnostic(page,reason){
+ const diagnostic={reason};
+ if(!page)return diagnostic;
+ try{
+  const route=new URL(page.url()).hash.split('?')[0].replace(/\/$/,'');
+  if(route!=='#/app/business/crm')return {...diagnostic,screenshotUnavailable:'A screenshot is available only after the Contacts page opens.'};
+  const screenshot=await page.screenshot({type:'jpeg',quality:65,timeout:3000,mask:[page.locator('table,[role="rowgroup"],[role="row"],.ag-row,.k-grid-content'),page.locator('input,textarea,[contenteditable="true"]'),page.locator('[class*="avatar"],[class*="profile"],[class*="user-name"]')]});
+  if(screenshot.length<750000)diagnostic.image=screenshot.toString('base64');
+  else diagnostic.screenshotUnavailable='The masked screenshot exceeded the size limit.';
+ }catch{diagnostic.screenshotUnavailable='The browser could not capture a masked screenshot.';}
+ return diagnostic;
+}
+async function exportContacts(env,{chromium,includeWorkbook=false,captureDiagnostics=false,onProgress=()=>{}}={}){
  const config=configuration(env),started=Date.now();onProgress({percent:5,label:'Connecting to Thrive4'});let browser,stage='connect',check='browser connection',deadline,page;
- // No traces, screenshots, response bodies, credentials or member files are logged or saved.
+ // Diagnostics are transient masked images; no traces, credentials or member files are logged or saved.
  const task=(async()=>{
   chromium ||= require('playwright-core').chromium;
   const endpoint=new URL('wss://production-lon.browserless.io');
@@ -100,24 +112,14 @@ async function exportContacts(env,{chromium,includeWorkbook=false,onProgress=()=
    await clickExportControl(exportControl);
    const payload=await download;
    const result=inspectDownload(payload);
-   return {...result,elapsedMs:Date.now()-started,membershipUpdated:false,...(includeWorkbook?{workbook:Buffer.from(payload.data,'base64')}:{})};
+   return {...result,elapsedMs:Date.now()-started,membershipUpdated:false,...(captureDiagnostics?{diagnostic:await captureDiagnostic(page,'Export downloaded; checking spreadsheet contents.')} :{}),...(includeWorkbook?{workbook:Buffer.from(payload.data,'base64')}:{})};
   }finally{clearTimeout(downloadTimer);cdp.off('Browserless.fileDownloaded',listener);}
  })();
  try{
   return await Promise.race([task,new Promise((_,reject)=>{deadline=setTimeout(()=>reject(new SyncError('SESSION_TIMEOUT',stage)),110000)})]);
  }catch(error){
-  let diagnostic;
-  if(stage==='download'&&check==='download Excel export'&&page){
-   const reason=actionabilityReason(error);console.info('Thrive export click:',reason);
-   // Only capture the Contacts page after sign-in, mask form fields and member rows.
-   // The protected response holds this image transiently; it is never saved or logged.
-   if(new URL(page.url()).hash.split('?')[0].replace(/\/$/,'')==='#/app/business/crm'){
-    try{
-     const screenshot=await page.screenshot({type:'jpeg',quality:65,timeout:3000,mask:[page.locator('table'),page.locator('[role="rowgroup"]'),page.locator('input'),page.locator('textarea')]});
-     if(screenshot.length<750000)diagnostic={reason,image:screenshot.toString('base64')};
-    }catch{diagnostic={reason};}
-   }
-  }
+  const reason=stage==='download'&&check==='download Excel export'?actionabilityReason(error):'Automation stopped at '+check+'.';
+  const diagnostic=await captureDiagnostic(page,reason);
   if(stage==='contacts'&&page){
    // Only fixed route labels and counts: no page text, contact names or credentials.
    const summary={route:new URL(page.url()).hash.split('?')[0]==='#/app/business/crm'?'contacts':'other',exportTextCount:await page.getByText('Export',{exact:true}).count().catch(()=>0),exportButtonCount:await page.getByRole('button',{name:/export/i}).count().catch(()=>0)};
@@ -130,4 +132,4 @@ async function exportContacts(env,{chromium,includeWorkbook=false,onProgress=()=
   const failure=new SyncError('AUTOMATION_FAILED',stage);failure.check=check;failure.diagnostic=diagnostic;throw failure;
  }finally{clearTimeout(deadline);if(browser){let cleanupTimer;try{await Promise.race([browser.close().catch(()=>{}),new Promise(resolve=>{cleanupTimer=setTimeout(resolve,5000)})])}finally{clearTimeout(cleanupTimer)}}}
 }
-module.exports={SyncError,configuration,inspectDownload,exportContacts,actionabilityReason,clickExportControl};
+module.exports={SyncError,configuration,inspectDownload,exportContacts,actionabilityReason,clickExportControl,captureDiagnostic};

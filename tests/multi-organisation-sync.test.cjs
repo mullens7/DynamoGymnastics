@@ -36,3 +36,8 @@ test('second organisation failure, invalid workbook or incomplete config never a
  exported=0;await assert.rejects(syncMembers({...env,GYMTOTS_THRIVE_EMAIL:'incomplete'}, {},services),{code:'GYMTOTS_NOT_CONFIGURED'});assert.equal(exported,0);
  services.exportContacts=async()=>({format:'xls'});await assert.rejects(syncMembers(both,{},services),{code:'INVALID_ROSTER'});assert.equal(saved,0);
 });
+test('spreadsheet rejection retains the correct organisation and transient screenshot; no partial save',async()=>{
+ let saves=0;
+ const services={exportContacts:async(e,options)=>{assert.equal(options.captureDiagnostics,true);return {format:'xlsx',workbook:e.THRIVE_EMAIL,diagnostic:{reason:'Export downloaded',image:'bWFza2Vk'}};},readWorkbook:async key=>{if(key===both.GYMTOTS_THRIVE_EMAIL)throw Object.assign(Error('invalid'),{code:'INVALID_ROSTER',stage:'validation',validation:{reason:'The account owner email is missing or invalid.',row:9}});return workbook('Gymini');},prepareRoster,fetch:async()=>{saves++;}};
+ await assert.rejects(syncMembers(both,{},services),error=>{assert.equal(error.organisation,'Gymtots R OK');assert.equal(error.validation.row,9);assert.equal(error.diagnostic.image,'bWFza2Vk');return true;});assert.equal(saves,0);
+});

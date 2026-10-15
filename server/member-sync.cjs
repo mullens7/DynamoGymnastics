@@ -21,18 +21,21 @@ async function syncMembers(env,{onProgress=()=>{}}={},services={exportContacts,r
  // pass validation before the single database transaction can change membership.
  for(let index=0;index<sources.length;index++){
   const source=sources[index],progress=item=>onProgress({percent:Math.floor(5+(index+Math.min(item.percent,80)/80)*75/sources.length),label:source.name+' — '+item.label});
-  const download=await services.exportContacts(source.env,{includeWorkbook:true,onProgress:progress});
-  if(download.format!=='xlsx')throw new RosterError('INVALID_ROSTER');
-  onProgress({percent:Math.floor(5+(index+.95)*75/sources.length),label:'Checking '+source.name+' memberships'});
-  const report={},workbook=await services.readWorkbook(download.workbook);
-  let mapping=source.config.mapping;
-  if(source.key==='gymtots'){
-   // Derived identities match the existing Dynamo profiles across organisations.
-   // Per-organisation numeric contact IDs are not globally unique.
-   mapping={...mapping,identityPolicy:'email_name_dob'};delete mapping.id;
-  }
-  source.owners=services.prepareRoster(workbook,mapping,report);
-  reports.push({...report,key:source.key,name:source.name});
+  let download;
+  try{
+   download=await services.exportContacts(source.env,{includeWorkbook:true,captureDiagnostics:true,onProgress:progress});
+   if(download.format!=='xlsx'){const error=new RosterError('INVALID_ROSTER');error.validation={reason:'The export is not an XLSX workbook. Export Contacts as Excel XLSX.'};throw error;}
+   onProgress({percent:Math.floor(5+(index+.95)*75/sources.length),label:'Checking '+source.name+' memberships'});
+   const report={},workbook=await services.readWorkbook(download.workbook);
+   let mapping=source.config.mapping;
+   if(source.key==='gymtots'){
+    // Derived identities match the existing Dynamo profiles across organisations.
+    // Per-organisation numeric contact IDs are not globally unique.
+    mapping={...mapping,identityPolicy:'email_name_dob'};delete mapping.id;
+   }
+   source.owners=services.prepareRoster(workbook,mapping,report);
+   reports.push({...report,key:source.key,name:source.name});
+  }catch(error){error.organisation=source.name;error.stage ||= 'validation';error.diagnostic ||= download?.diagnostic;throw error;}
  }
  const owners=mergeRosters(sources);
  onProgress({percent:85,label:'Combining accounts and checking both exports'});

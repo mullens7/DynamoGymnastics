@@ -51,3 +51,10 @@ test('Export geometry fallback only activates a visible enabled control',async()
  evaluations=0;control.isEnabled=async()=>true;control.click=async()=>{throw new Error('overlay intercepts pointer events')};
  await assert.rejects(clickExportControl(control),/overlay/);assert.equal(activated,0);
 });
+test('masked diagnostics capture Contacts only, restrict size and survive screenshot failure',async()=>{
+ const {captureDiagnostic}=require('../server/thrive-export.cjs');let calls=0;const selectors=[];
+ const page={url:()=> 'https://club.thrive4.com/#/app/business/crm',locator:selector=>{selectors.push(selector);return {};},screenshot:async options=>{calls++;assert.equal(options.mask.length,3);return Buffer.from('masked-fixture');}};
+ let result=await captureDiagnostic(page,'Export downloaded');assert.equal(result.image,Buffer.from('masked-fixture').toString('base64'));assert.ok(selectors.some(s=>s.includes('input')));assert.ok(selectors.some(s=>s.includes('rowgroup')));
+ page.url=()=> 'https://club.thrive4.com/#/login';result=await captureDiagnostic(page,'Login failed');assert.equal(calls,1);assert.equal(result.image,undefined);assert.ok(result.screenshotUnavailable);
+ page.url=()=> 'https://club.thrive4.com/#/app/business/crm';page.screenshot=async()=>{throw Error('private DOM');};result=await captureDiagnostic(page,'Download failed');assert.equal(result.image,undefined);assert.equal(JSON.stringify(result).includes('private DOM'),false);
+});

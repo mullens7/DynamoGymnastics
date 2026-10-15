@@ -34,3 +34,8 @@ test('failed manual sync never sends 100% or successful completion',async()=>{
  await makeHandler(env,undefined,operations)({method:'POST',headers:{authorization:'Bearer '+env.SYNC_TEST_KEY},body:{mode:'sync',pin:'2468'}},response);
  assert.equal(response.lines.some(x=>x.percent===100||x.type==='complete'),false);assert.equal(response.lines.at(-1).type,'error');assert.equal(JSON.stringify(response.lines).includes('private database'),false);
 });
+test('manual sync streams source, validation detail and masked screenshot without raw error text',async()=>{
+ const response=res();const operations={confirmPin:async()=>{},performSync:async()=>{throw Object.assign(Error('private contact@example.invalid token=secret'),{code:'INVALID_ROSTER',stage:'validation',organisation:'Gymtots R OK',validation:{reason:'The account owner email is missing or invalid.',row:33,column:'Owner email'},diagnostic:{reason:'Export downloaded; checking spreadsheet contents.',image:Buffer.from('masked-fixture').toString('base64')}});}};
+ await makeHandler(env,undefined,operations)({method:'POST',headers:{authorization:'Bearer '+env.SYNC_TEST_KEY},body:{mode:'sync',pin:'2468'}},response);
+ const failure=response.lines.at(-1);assert.equal(failure.organisation,'Gymtots R OK');assert.equal(failure.validation.row,33);assert.equal(failure.stage,'validation');assert.equal(failure.error,'INVALID_ROSTER');assert.ok(failure.diagnostic.image);assert.equal(JSON.stringify(response.lines).includes('token=secret'),false);assert.equal(response.lines.some(x=>x.type==='complete'),false);
+});

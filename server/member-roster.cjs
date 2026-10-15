@@ -1,16 +1,17 @@
 const {createHash}=require('node:crypto');
 const {classify}=require('../public/manage/membership.js');
 class RosterError extends Error {constructor(code,review){super(code);this.code=code;this.stage='validation';if(review)this.review=review;}}
+function invalid(reason,row,column){const error=new RosterError('INVALID_ROSTER');error.validation={reason,...(Number.isInteger(row)?{row}:{}),...(column?{column}:{})};return error;}
 const normal=value=>String(value??'').trim().toLowerCase().replace(/[^a-z0-9]/g,'');
 function text(cell){
- if(cell.type===6)throw new RosterError('INVALID_ROSTER'); // Formulas are not identity fields.
+ if(cell.type===6)throw invalid('A formula was found where a plain exported value is required.',cell.row); // Formulas are not identity fields.
  const v=cell.value;if(v instanceof Date)return v.toISOString().slice(0,10);
- if(v&&typeof v==='object'){if(v.richText)return v.richText.map(x=>x.text).join('');if(v.text)return String(v.text);throw new RosterError('INVALID_ROSTER');}
+ if(v&&typeof v==='object'){if(v.richText)return v.richText.map(x=>x.text).join('');if(v.text)return String(v.text);throw invalid('An unsupported Excel cell value was found.',cell.row);}
  return String(v??'').trim();
 }
 async function readWorkbook(buffer){
  const Excel=require('exceljs'),workbook=new Excel.Workbook();
- try{await workbook.xlsx.load(buffer);}catch{throw new RosterError('INVALID_ROSTER');}
+ try{await workbook.xlsx.load(buffer);}catch{throw invalid('The downloaded file could not be opened as an XLSX workbook.');}
  const candidates=[];
  for(const sheet of workbook.worksheets){
   for(let i=1;i<=Math.min(sheet.rowCount,10);i++){
@@ -19,13 +20,13 @@ async function readWorkbook(buffer){
    if(keys.some(k=>['timeandclass','timeclass'].includes(k))&&keys.some(k=>['owneremail','accountowneremail','emailaddress','email'].includes(k))){candidates.push({sheet,header:i,columns});break;}
   }
  }
- if(candidates.length!==1)throw new RosterError('INVALID_ROSTER');
- const result=candidates[0];if(result.sheet.rowCount>20001)throw new RosterError('INVALID_ROSTER');
+ if(candidates.length!==1)throw invalid(candidates.length?'More than one worksheet contains the contact export headings.':'No worksheet contains both the Time and Class and owner email headings in its first ten rows.');
+ const result=candidates[0];if(result.sheet.rowCount>20001)throw invalid('The export exceeds the 20,000-contact limit.');
  result.rows=[];result.sheet.eachRow((row,index)=>{if(index>result.header&&row.actualCellCount)result.rows.push(row);});
  if(!result.rows.length)throw new RosterError('EMPTY_ROSTER');return result;
 }
 function columnMap(columns,mapping){
- const byName=new Map();for(const c of columns){const key=normal(c.label);if(byName.has(key))throw new RosterError('INVALID_ROSTER');byName.set(key,c.index);}
+ const byName=new Map();for(const c of columns){const key=normal(c.label);if(byName.has(key))throw invalid('Two export column headings have the same name.');byName.set(key,c.index);}
  const required=['email','firstName','lastName','timeClass'];const mapped={};
  for(const [field,label] of Object.entries(mapping)){if(field==='activeValues'||field==='membershipPolicy'||field==='identityPolicy')continue;const index=byName.get(normal(label));if(!index)throw new RosterError('ROSTER_MAPPING_REQUIRED');mapped[field]=index;}
  if((!mapped.id&&(mapping.identityPolicy!=='email_name_dob'||!mapped.dateOfBirth))||required.some(k=>!mapped[k])||(!mapped.status&&mapping.membershipPolicy!=='assigned_classes'))throw new RosterError('ROSTER_MAPPING_REQUIRED');
@@ -46,16 +47,16 @@ function prepareRoster(workbook,mapping,report={}){
  const columns=columnMap(workbook.columns,mapping),owners=new Map(),seen=new Set(),unmapped=new Map();
  report.unmappedRows=0;report.unmappedClasses=[];
  for(const row of workbook.rows){
-  const value=field=>columns[field]?text(row.getCell(columns[field])):'';
+  const value=field=>{try{return columns[field]?text(row.getCell(columns[field])):'';}catch(error){error.validation={...error.validation,row:row.number,column:field};throw error;}};
   const email=value('email').toLowerCase();
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new RosterError('INVALID_ROSTER');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw invalid('The account owner email is missing or invalid.',row.number,'Owner email');
   const timeClass=value('timeClass'),rule=classify(timeClass);
   // Unknown labels grant no member or staff benefits.
   if(rule.review.length){report.unmappedRows++;const label=timeClass.slice(0,200);unmapped.set(label,(unmapped.get(label)||0)+1);}
   const active=columns.status?mapping.activeValues.map(normal).includes(normal(value('status'))):rule.groups.length>0||rule.staff;
   let owner=owners.get(email);if(!owner){owner={email,ownerName:value('ownerName'),member:false,staff:false,gymnasts:[]};owners.set(email,owner);}
   owner.staff ||= active&&rule.staff;
-  if(rule.groups.length){const firstName=value('firstName'),lastName=value('lastName');if(!firstName||!lastName)throw new RosterError('INVALID_ROSTER');
+  if(rule.groups.length){const firstName=value('firstName'),lastName=value('lastName');if(!firstName||!lastName)throw invalid('A gymnast with a recognised class is missing a first or last name.',row.number,'Gymnast name');
    const dateOfBirth=canonicalDate(value('dateOfBirth'));
    const id=columns.id?value('id'):profileIdentity(email,firstName,lastName,dateOfBirth);
    if(!id||seen.has(id))throw new RosterError('IDENTITY_REVIEW_REQUIRED');seen.add(id);
