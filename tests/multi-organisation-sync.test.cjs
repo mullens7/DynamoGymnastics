@@ -51,3 +51,7 @@ test('invalid contact values never open column management; repeated missing head
  await assert.rejects(syncMembers(env,{},services),{code:'INVALID_ROSTER'});assert.equal(exports,1);assert.equal(saves,0);
  exports=0;services.readWorkbook=async()=>{throw Object.assign(Error('missing headings'),{code:'INVALID_ROSTER',missingColumns:true});};await assert.rejects(syncMembers(env,{},services),{code:'INVALID_ROSTER'});assert.equal(exports,2);assert.equal(saves,0);
 });
+test('combined imports apply Gymtots age classification only to that source and share the Gymini key',async()=>{
+ let body;const services={exportContacts:async e=>({format:'xlsx',workbook:e.THRIVE_EMAIL}),readWorkbook:async key=>workbook(key===env.THRIVE_EMAIL?'Gymini':'Monday - Hamble Under 2 Years - 9.30-10.10am'),prepareRoster,fetch:async(url,options)=>{body=JSON.parse(options.body);return {ok:true,json:async()=>({accounts:1,members:1,staff:0})};}};
+ await syncMembers(both,{},services);assert.equal(body.p_rows[0].gymnasts.length,1);assert.deepEqual(body.p_rows[0].gymnasts[0].groups,['gymini','under_2_years']);assert.equal(body.p_sources.find(s=>s.key==='gymtots').members,1);
+});

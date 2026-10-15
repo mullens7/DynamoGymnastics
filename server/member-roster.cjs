@@ -1,5 +1,5 @@
 const {createHash}=require('node:crypto');
-const {classify}=require('../public/manage/membership.js');
+const {classify,classifyGymtots}=require('../public/manage/membership.js');
 class RosterError extends Error {constructor(code,review){super(code);this.code=code;this.stage='validation';if(review)this.review=review;}}
 function invalid(reason,row,column){const error=new RosterError('INVALID_ROSTER');error.validation={reason,...(Number.isInteger(row)?{row}:{}),...(column?{column}:{})};return error;}
 const normal=value=>String(value??'').trim().toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -43,14 +43,14 @@ function profileIdentity(email,firstName,lastName,dateOfBirth){
  const canonical=value=>value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
  return 'derived:'+createHash('sha256').update(JSON.stringify([canonical(email),canonical(firstName),canonical(lastName),dateOfBirth])).digest('hex');
 }
-function prepareRoster(workbook,mapping,report={}){
+function prepareRoster(workbook,mapping,report={},{source='dynamo'}={}){
  const columns=columnMap(workbook.columns,mapping),owners=new Map(),seen=new Set(),unmapped=new Map();
  report.unmappedRows=0;report.unmappedClasses=[];
  for(const row of workbook.rows){
   const value=field=>{try{return columns[field]?text(row.getCell(columns[field])):'';}catch(error){error.validation={...error.validation,row:row.number,column:field};throw error;}};
   const email=value('email').toLowerCase();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw invalid('The account owner email is missing or invalid.',row.number,'Owner email');
-  const timeClass=value('timeClass'),rule=classify(timeClass);
+  const timeClass=value('timeClass'),rule=(source==='gymtots'?classifyGymtots:classify)(timeClass);
   // Unknown labels grant no member or staff benefits.
   if(rule.review.length){report.unmappedRows++;const label=timeClass.slice(0,200);unmapped.set(label,(unmapped.get(label)||0)+1);}
   const active=columns.status?mapping.activeValues.map(normal).includes(normal(value('status'))):rule.groups.length>0||rule.staff;

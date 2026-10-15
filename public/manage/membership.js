@@ -1,7 +1,8 @@
 /* Shared membership rules for management and trusted server-side imports.
    Classification alone never proves active enrolment or authorises portal access. */
 (function(root){
-  const groups = Object.freeze({gymtots:'Gymtots',gymini:'Gymini',recreational:'Recreational',advanced:'Advanced',mens_squad:"Men’s Squad",mens_development:"Men’s Development Squad",womens_squad:"Women’s Squad",womens_development:"Women’s Development Squad"});
+  // Non-selectable legacy key preserves existing Dynamo-only Gymtots records.
+  const groups = Object.freeze(Object.defineProperty({under_2_years:'Under 2 Years',two_years:'2 Years',three_to_four_years:'3–4 Years',under_4_years:'Under 4 Years',gymini:'Gymini',recreational:'Recreational',advanced:'Advanced',mens_squad:"Men’s Squad",mens_development:"Men’s Development Squad",womens_squad:"Women’s Squad",womens_development:"Women’s Development Squad"},'gymtots',{value:'Gymtots',enumerable:false}));
   function classify(value){
     const entries = (Array.isArray(value)?value:[value]).flatMap(v=>String(v??'').split(/[,;\n|]+/)).map(s=>s.trim()).filter(Boolean);
     const result = new Set(), review = [], unmapped = [];
@@ -20,6 +21,21 @@
     // Class keywords can occur anywhere in the field; dates and notes are not separate enrolments.
     if(!result.size&&!staff)review.push(...unmapped);
     return {groups:[...result],staff,review};
+  }
+  // Gymtots organisation only: do not apply age-label matching to Dynamo exports.
+  function classifyGymtots(value){
+    const entries=(Array.isArray(value)?value:[value]).flatMap(v=>String(v??'').normalize('NFKC').replace(/[–—]/g,'-').split(/[,;\n|]+/)).map(s=>s.trim()).filter(Boolean);
+    const result=new Set(),unmapped=[];let staff=false;
+    for(const text of entries){
+      staff ||= /coach|manager|director/i.test(text);
+      if(/gymini|\b4\s*-\s*7(?:\s*years?\b|\b)/i.test(text))result.add('gymini');
+      else if(/\bunder\s*2\b/i.test(text))result.add('under_2_years');
+      else if(/\b3\s*-\s*4\s*years?\b/i.test(text))result.add('three_to_four_years');
+      else if(/\bunder\s*4\b/i.test(text))result.add('under_4_years');
+      else if(/\b2\s*years?\b/i.test(text))result.add('two_years');
+      else if(!/coach|manager|director/i.test(text))unmapped.push('Unmapped entry: '+text);
+    }
+    return {groups:[...result],staff,review:!result.size&&!staff?unmapped:[]};
   }
   // Rows must use trusted export identity fields. Never merge gymnasts by name.
   // A stable gymnastId and explicit active status are required for member benefits.
@@ -58,7 +74,7 @@
     // Member pricing follows the verified owner's active-member household.
     return {eligible:true,priceCents:account?.member===true?event.memberPriceCents:event.nonMemberPriceCents};
   }
-  const api=Object.freeze({groups,classify,accounts,cents,eligible,quote});
+  const api=Object.freeze({groups,classify,classifyGymtots,accounts,cents,eligible,quote});
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else root.DynamoMembership=api;
 })(globalThis);

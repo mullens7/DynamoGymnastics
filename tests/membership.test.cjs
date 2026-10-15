@@ -42,3 +42,25 @@ test('Gymtots is an active member group and available for event restrictions',()
  const account=m.accounts([{email:'parent@example.invalid',gymnastId:'gymtots-child',timeClass:'Gymtots',active:true}])[0];
  assert.equal(account.member,true);assert.equal(m.eligible({audience:'groups',allowedGroups:['gymtots']},account,'gymtots-child'),true);
 });
+test('Gymtots-only age rules classify every supplied class label with correct precedence',()=>{
+ const cases=[
+ ["Monday - West End Under 2's - 9.30 - 10.10am",'under_2_years'],
+ ['Tuesday - West End Gymini 4-7 Years 4.00-4.45pm','gymini'],
+ ['Friday - West End 2 Years - 10.20 - 11.00am','two_years'],
+ ['Wednesday - Hamble 2 Years - 10.20-11.00am','two_years'],
+ ['Friday - West End Gymini 4-7 Years - 4.00-4.45pm','gymini'],
+ ['Friday - West End 2 Years - 10.20-11.00am','two_years'],
+ ['Monday - West End Under 2 Years - 9.30-10.20am','under_2_years'],
+ ['Tuesday - Hamble 2 Years - 10.20-11.00am','two_years'],
+ ["Tuesday - Hamble Under 2's - 9.30-10.10am",'under_2_years'],
+ ['Thursday - Hamble 3-4 Years - 11.20-12.00','three_to_four_years'],
+ ["Saturday - West End Under 4's Fun Session- 9.30-10.10am",'under_4_years']];
+ for(const [label,group] of cases)assert.deepEqual(m.classifyGymtots(label),{groups:[group],staff:false,review:[]},label);
+ assert.deepEqual(m.classifyGymtots('Under 2 Years').groups,['under_2_years']);assert.deepEqual(m.classifyGymtots('3 – 4 years').groups,['three_to_four_years']);assert.deepEqual(m.classifyGymtots('4-7 Years').groups,['gymini']);assert.deepEqual(m.classifyGymtots('Under 4 Years').groups,['under_4_years']);
+});
+test('new Gymtots groups are selectable and support eligibility without altering Dynamo classification',()=>{
+ const ids=['under_2_years','two_years','three_to_four_years','under_4_years'];for(const id of ids)assert.ok(Object.keys(m.groups).includes(id));assert.equal(Object.keys(m.groups).includes('gymtots'),false);
+ assert.deepEqual(m.classify('Monday Under 2 Years').groups,[]);assert.deepEqual(m.classify('Gymtots').groups,['gymtots']);assert.deepEqual(m.classify('Boys Advanced Recreational').groups,['advanced']);
+ for(const id of ids){const a={member:true,gymnasts:[{id:'child',active:true,groups:[id]}]};assert.equal(m.eligible({audience:'groups',allowedGroups:[id]},a,'child'),true);assert.equal(m.eligible({audience:'groups',allowedGroups:['gymini']},a,'child'),false);}
+ assert.deepEqual(m.classifyGymtots('Under 2 Years, Junior Coach'),{groups:['under_2_years'],staff:true,review:[]});assert.deepEqual(m.classifyGymtots('Senior Coach'),{groups:[],staff:true,review:[]});assert.equal(m.classifyGymtots('Gymtots').groups.length,0);assert.equal(m.classifyGymtots('Waiting list').review.length,1);
+});

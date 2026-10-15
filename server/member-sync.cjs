@@ -36,7 +36,7 @@ async function syncMembers(env,{onProgress=()=>{}}={},services={exportContacts,r
     if(download.format!=='xlsx'){const error=new RosterError('INVALID_ROSTER');error.validation={reason:'The export is not an XLSX workbook. Export Contacts as Excel XLSX.'};throw error;}
     onProgress({percent:(sourceProgress=Math.max(sourceProgress,Math.floor(5+(index+.95)*75/sources.length))),label:'Checking '+source.name+' memberships'});
     const workbook=await services.readWorkbook(download.workbook,{allowClassHeading:source.key==='gymtots'});
-    return services.prepareRoster(workbook,sourceMapping(source,workbook.columns,mapping),report);
+    return services.prepareRoster(workbook,sourceMapping(source,workbook.columns,mapping),report,{source:source.key});
    };
    try{source.owners=await validate();}
    catch(error){
