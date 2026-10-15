@@ -65,3 +65,9 @@ test('Gymtots classification updates existing owners and changes the snapshot id
  const existing=[{id:'retained-owner',email:'parent@example.invalid',gymnasts:[],purchases:[{id:'past-purchase'}]}];
  const updated=reconcile(existing,roster,()=>{throw Error('Account recreated')});assert.equal(updated[0].id,'retained-owner');assert.equal(updated[0].member,true);assert.deepEqual(updated[0].purchases,existing[0].purchases);
 });
+test('Gymtots Class heading is recognised only for its explicitly enabled export format',async()=>{
+ const wb=new Excel.Workbook(),sheet=wb.addWorksheet('Contacts');sheet.addRow(['last name','first name','owner email','account owner','Class','*BG member number','date of birth']);sheet.addRow(['Child','Test','owner@example.invalid','Parent','West End Gymini 4-7 Years','BG123','02/01/2022']);const bytes=Buffer.from(await wb.xlsx.writeBuffer());
+ await assert.rejects(readWorkbook(bytes),{code:'INVALID_ROSTER'});const parsed=await readWorkbook(bytes,{allowClassHeading:true});assert.equal(parsed.rows.length,1);
+ const {sourceMapping}=require('../server/roster-sources.cjs');const map={lastName:'last name',firstName:'first name',email:'owner email',ownerName:'account owner',timeClass:'time and class',bgNumber:'*bg membership number',dateOfBirth:'date of birth',identityPolicy:'email_name_dob',membershipPolicy:'assigned_classes'};
+ const resolved=sourceMapping({key:'gymtots'},parsed.columns,map);assert.equal(resolved.timeClass,'Class');assert.equal(resolved.bgNumber,'*BG member number');assert.equal(sourceMapping({key:'dynamo'},parsed.columns,map),map);assert.equal(map.timeClass,'time and class');const owners=prepareRoster(parsed,resolved);assert.equal(owners[0].gymnasts[0].bgNumber,'BG123');assert.deepEqual(owners[0].gymnasts[0].groups,['gymini']);
+});

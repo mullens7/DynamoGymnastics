@@ -8,6 +8,19 @@ function sourceConfigurations(env){
  }
  return sources;
 }
+function sourceMapping(source,columns,mapping){
+ if(source.key!=='gymtots')return mapping;
+ const normal=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ const resolved={...mapping};
+ // Gymtots uses separate custom fields with different labels for the same data.
+ const aliases={timeClass:['timeandclass','timeclass','class'],bgNumber:['bgmembershipnumber','bgmembernumber']};
+ for(const [field,names] of Object.entries(aliases)){
+  if(!resolved[field]||columns.some(c=>normal(c.label)===normal(resolved[field])))continue;
+  const matches=columns.filter(c=>names.includes(normal(c.label)));
+  if(matches.length===1)resolved[field]=matches[0].label;
+ }
+ return resolved;
+}
 function mergeRosters(sources){
  const owners=new Map(),ids=new Map();
  for(const source of sources)for(const incoming of source.owners){
@@ -33,4 +46,4 @@ function mergeRosters(sources){
 function sourceSummary(source){
  return {key:source.key,accounts:source.owners.length,members:source.owners.filter(a=>a.member).length,staff:source.owners.filter(a=>a.staff).length,gymnasts:source.owners.reduce((n,a)=>n+a.gymnasts.length,0)};
 }
-module.exports={sourceConfigurations,mergeRosters,sourceSummary};
+module.exports={sourceConfigurations,sourceMapping,mergeRosters,sourceSummary};

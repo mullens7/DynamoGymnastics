@@ -2,7 +2,7 @@ const {createHash}=require('node:crypto');
 const {database}=require('./database.cjs');
 const {exportContacts}=require('./thrive-export.cjs');
 const {readWorkbook,prepareRoster,RosterError}=require('./member-roster.cjs');
-const {sourceConfigurations,mergeRosters,sourceSummary}=require('./roster-sources.cjs');
+const {sourceConfigurations,sourceMapping,mergeRosters,sourceSummary}=require('./roster-sources.cjs');
 function settings(env){
  const config=database(env);
  let mapping;try{mapping=JSON.parse(env.THRIVE_EXPORT_MAPPING||'');}catch{throw new RosterError('ROSTER_MAPPING_REQUIRED');}
@@ -35,8 +35,8 @@ async function syncMembers(env,{onProgress=()=>{}}={},services={exportContacts,r
    const validate=async()=>{
     if(download.format!=='xlsx'){const error=new RosterError('INVALID_ROSTER');error.validation={reason:'The export is not an XLSX workbook. Export Contacts as Excel XLSX.'};throw error;}
     onProgress({percent:(sourceProgress=Math.max(sourceProgress,Math.floor(5+(index+.95)*75/sources.length))),label:'Checking '+source.name+' memberships'});
-    const workbook=await services.readWorkbook(download.workbook);
-    return services.prepareRoster(workbook,mapping,report);
+    const workbook=await services.readWorkbook(download.workbook,{allowClassHeading:source.key==='gymtots'});
+    return services.prepareRoster(workbook,sourceMapping(source,workbook.columns,mapping),report);
    };
    try{source.owners=await validate();}
    catch(error){

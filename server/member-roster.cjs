@@ -9,7 +9,7 @@ function text(cell){
  if(v&&typeof v==='object'){if(v.richText)return v.richText.map(x=>x.text).join('');if(v.text)return String(v.text);throw invalid('An unsupported Excel cell value was found.',cell.row);}
  return String(v??'').trim();
 }
-async function readWorkbook(buffer){
+async function readWorkbook(buffer,{allowClassHeading=false}={}){
  const Excel=require('exceljs'),workbook=new Excel.Workbook();
  try{await workbook.xlsx.load(buffer);}catch{throw invalid('The downloaded file could not be opened as an XLSX workbook.');}
  const candidates=[];
@@ -17,7 +17,7 @@ async function readWorkbook(buffer){
   for(let i=1;i<=Math.min(sheet.rowCount,10);i++){
    const row=sheet.getRow(i),columns=[];row.eachCell((cell,index)=>columns.push({index,label:text(cell)}));
    const keys=columns.map(c=>normal(c.label));
-   if(keys.some(k=>['timeandclass','timeclass'].includes(k))&&keys.some(k=>['owneremail','accountowneremail','emailaddress','email'].includes(k))){candidates.push({sheet,header:i,columns});break;}
+   if(keys.some(k=>(allowClassHeading?['timeandclass','timeclass','class']:['timeandclass','timeclass']).includes(k))&&keys.some(k=>['owneremail','accountowneremail','emailaddress','email'].includes(k))){candidates.push({sheet,header:i,columns});break;}
   }
  }
  if(candidates.length!==1){const error=invalid(candidates.length?'More than one worksheet contains the contact export headings.':'No worksheet contains both the Time and Class and owner email headings in its first ten rows.');error.missingColumns=candidates.length===0;throw error;}

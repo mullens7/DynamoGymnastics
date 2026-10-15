@@ -43,7 +43,7 @@ function makeHandler(env=process.env,run=exportContacts,ops={confirmPin,performS
   catch(error){error.organisation=source.name;throw error;}
   if(mode==='inspect'){
    if(result.format!=='xlsx')throw Object.assign(new Error('INVALID_ROSTER'),{code:'INVALID_ROSTER'});
-   let workbook;try{workbook=await readWorkbook(result.workbook);}catch(error){error.organisation=source.name;error.diagnostic=result.diagnostic;throw error;}
+   let workbook;try{workbook=await readWorkbook(result.workbook,{allowClassHeading:source.key==='gymtots'});}catch(error){error.organisation=source.name;error.diagnostic=result.diagnostic;throw error;}
    const {workbook:discarded,diagnostic:discardedDiagnostic,...summary}=result;
    return res.status(200).json({ok:true,...summary,columns:workbook.columns.map(c=>c.label),rowCount:workbook.rows.length,message:'Export structure checked. No records were changed or emails sent.'});
   }
