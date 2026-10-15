@@ -45,3 +45,24 @@ aside>.brand{margin-bottom:0;padding-bottom:0}aside>.brand img{display:block}asi
 .checkin-session-list{display:flex;flex-direction:column;gap:12px}.checkin-section-heading{font-size:17px;margin:22px 0 12px}.checkin-session-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 22px;background:#fff;border:1px solid #dce3ec;border-radius:10px}.checkin-session-row strong{font-size:18px}.checkin-session-row p{margin:7px 0 3px;font-size:14px}.checkin-session-row small{display:block;margin-top:4px;color:#758194}.checkin-session-row .primary{flex-shrink:0}@media(max-width:600px){.checkin-session-row{align-items:flex-start;flex-direction:column;padding:18px;gap:14px}.checkin-session-row .primary{width:100%;min-height:44px}}
 
 #sync-status.sync-error{display:block;background:#fff0f0;border:2px solid #b42318;border-radius:8px;color:#9b1c13;padding:14px 16px;font-size:15px;font-weight:600;line-height:1.5}#sync-pin[aria-invalid="true"]{border:2px solid #b42318;outline-color:#b42318}
+
+/* Keep record actions and settings usable across phone and tablet widths. */
+#confirmation-settings{display:grid;gap:8px;min-width:0}
+#confirmation-settings>label:not(.check){display:block;font-size:13px;font-weight:600;color:#526176;margin-top:12px}
+#confirmation-settings>input,#confirmation-settings>textarea{width:100%;max-width:100%}
+#confirmation-settings .check{display:flex;align-items:flex-start;gap:10px;line-height:1.5;padding:6px 0}
+#confirmation-settings .check input{width:22px;height:22px;min-height:22px;margin:0;flex:0 0 22px}
+@media(max-width:850px){
+ main>header{flex-wrap:wrap;align-items:flex-start}
+ main>header>span,main>header>div{min-width:0;max-width:100%}
+ .page-title>.tools button{flex:1 1 140px}
+ .primary,.secondary,.danger{max-width:100%;white-space:normal;line-height:1.4;overflow-wrap:break-word}
+ dialog input[type=file]{max-width:100%}
+ dialog fieldset{min-width:0}
+ .booking-table td small .text-button{max-width:100%;white-space:normal!important;line-height:1.4}
+ .booking-table .booking-created-cell{min-width:0;max-width:none}
+ .award-work-table td{min-width:0}
+ .admin-event-group tbody tr{width:auto}
+ .admin-event-group td{min-width:0}
+ .dialog-actions button{min-width:0;min-height:44px}
+}

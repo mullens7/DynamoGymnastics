@@ -4,7 +4,7 @@ Engineering verification is complete for this release, subject to the owner acce
 
 ## Verified
 
-- 215 automated tests and the production build passed. Production dependency audit: zero known advisories after updating sharp to 0.35.5 and overriding ExcelJS's compatible UUID dependency to 11.1.1.
+- 231 automated tests and the production build passed. Production dependency audit: zero known advisories after updating sharp to 0.35.5 and overriding ExcelJS's compatible UUID dependency to 11.1.1.
 - 19 transactional database suites passed: 18 against Supabase with rollback, and the combined-source sync suite against an isolated restored PostgreSQL 17.5 database. SQL fixtures were updated to the current medical-field and party-destination contracts; no application checks were relaxed.
 - Twelve hosted page routes returned 200. Live authenticated API checks passed for Super Admin, Event Admin, Check-in, Party Staff, Staff Planner, member and non-member fictional accounts. Restricted accounts could not read Contacts or award email settings. Seven temporary accounts/sessions were removed.
 - Stripe read-only health: correct Dynamo connected account; card capability active; charges/payouts enabled; webhook enabled with checkout, failure and refund events. No payment or refund request was issued.
@@ -29,7 +29,7 @@ This verifies application schema/data and file copies. It is not a restore of th
 
 ## Owner actions before publication
 
-1. Replace Dynamo Thrive4 credentials and add Gymtots credentials in Vercel; redeploy, run the combined sync and check recognised class groups/counts.
+1. Combined Dynamo/Gymtots sync is now verified: latest successful run 15/10/2026 14:31 UK, 1,135 accounts and 1,204 gymnasts. Review the final counts against both organisations before cutover.
 2. Stop Wix bookings for the final transfer; provide/reconcile anything booked since the earlier import, including every existing party and blocked date. The new database currently has zero confirmed party bookings and only three future party slots.
 3. Set award prices (all 17 enabled awards currently have no price) or keep award purchasing unadvertised until ready. Confirm actual party availability, event prices/capacities, ages and public wording. Do not invent pricing or dates.
 4. On real phones, complete the short owner acceptance: OTP login, mixed household pricing, multiple-child basket, returning from Stripe, successful/failed/cancelled result, wallet total, restricted staff and session QR check-in. Any real email/payment/refund tests remain owner-controlled and separately authorised.
@@ -38,3 +38,16 @@ This verifies application schema/data and file copies. It is not a restore of th
 ## Cutover and rollback
 
 Keep Wix intact. Record the final export cutoff, booking counts, backup time and deployed commit. Switch only web DNS records. If a serious issue appears, stop new bookings and revert web DNS or the tested Vercel deployment. Reconcile any orders already accepted by the new system before reopening Wix; a website rollback does not reverse Supabase data or Stripe transactions.
+
+## Final admin responsive review — 15/10/2026
+
+- Fixed a conflicting 700px breakpoint: booking/history tables now switch fully to record cards through the shared 850px phone/tablet breakpoint, including dashboard tables and booking dialogs.
+- Constrained long confirmation/action buttons to their available width; allowed header links and calendar action buttons to wrap cleanly; removed an event-row width/margin combination that could overflow on phones.
+- Email confirmation settings now have full-width labelled fields and aligned checkbox controls. Dialog fieldsets can shrink, and each editor opens at the top rather than retaining the previous dialog's scroll position.
+- Production build and all 231 automated tests pass; production dependency audit reports zero known vulnerabilities. These are code and regression checks, not proof of every device layout.
+- Live browser navigation confirms public home/events render and use saved listings. Authenticated admin visual checks on physical iPhone/Android remain an owner acceptance gate: this browser has no staff session and no supported viewport-resize capability. No OTP/email was requested to acquire one.
+- Latest read-only database checks: zero negative wallets, payment/refund reviews or confirmation reviews; 58 confirmed event bookings. Awards still have 17 missing prices; parties still have zero confirmed bookings and three future slots.
+- Supabase security advisor has informational server-only RLS/no-policy notices; no warning/error findings. Vercel reports a Node DEP0169 URL parsing deprecation from the runtime/dependency path, with no separate application exception group in the checked result.
+- The UK midnight/noon membership scheduler and payment/notification status recovery cron entries are active. No scheduled job was manually triggered during this review.
+
+This release is a candidate for owner acceptance and cutover, not an unconditional guarantee. The earlier transactional database suites remain applicable; they were not rerun for CSS-only changes. No 250-user simultaneous load test has been completed. Confirm production hosting/database plans and limits, reconcile final Wix bookings, set missing prices, complete physical-device acceptance and refresh the recovery snapshot after final imports before changing DNS.
