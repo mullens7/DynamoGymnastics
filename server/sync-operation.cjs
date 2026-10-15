@@ -8,7 +8,7 @@ async function confirmPin(env,pin){
  const matches=typeof pin==='string'&&/^\d{4}$/.test(pin)&&equal(pin,env.SYNC_CONFIRM_PIN);
  const verdict=await rpc(env,'check_dynamo_sync_pin',{p_matches:matches});if(verdict!=='OK')throw new RosterError(verdict==='PIN_LOCKED'?'PIN_LOCKED':'PIN_INCORRECT');
 }
-async function finish(env,id,status,result,errorCode){const c=database(env),url=new URL(c.url+'/rest/v1/dynamo_sync_jobs');url.searchParams.set('id','eq.'+id);const r=await fetch(url,{method:'PATCH',headers:{...c.headers,'Content-Type':'application/json'},redirect:'error',body:JSON.stringify({status,finished_at:new Date().toISOString(),result:result?{accounts:result.accounts,members:result.members,staff:result.staff,unchanged:result.unchanged}:null,error_code:errorCode||null}),signal:AbortSignal.timeout(10000)});if(!r.ok)throw new RosterError('SYNC_STORAGE_FAILED');}
+async function finish(env,id,status,result,errorCode){const c=database(env),url=new URL(c.url+'/rest/v1/dynamo_sync_jobs');url.searchParams.set('id','eq.'+id);const r=await fetch(url,{method:'PATCH',headers:{...c.headers,'Content-Type':'application/json'},redirect:'error',body:JSON.stringify({status,finished_at:new Date().toISOString(),result:result?{accounts:result.accounts,members:result.members,staff:result.staff,unchanged:result.unchanged,organisations:result.organisations}:null,error_code:errorCode||null}),signal:AbortSignal.timeout(10000)});if(!r.ok)throw new RosterError('SYNC_STORAGE_FAILED');}
 async function performSync(env,{source='manual',slot=null,onProgress=()=>{}}={}){
  const claim=await rpc(env,'claim_dynamo_sync',{p_source:source,p_slot:slot});
  if(claim.state==='duplicate')return {ok:true,duplicate:true};

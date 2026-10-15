@@ -5,10 +5,10 @@
   "trailingSlash": true,
   "functions": {
     "api/sync-members.js": {
-      "maxDuration": 150
+      "maxDuration": 300
     },
     "api/scheduled-sync.js": {
-      "maxDuration": 150
+      "maxDuration": 300
     },
     "api/email-status.js": {
       "maxDuration": 60

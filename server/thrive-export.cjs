@@ -4,7 +4,8 @@ class SyncError extends Error {constructor(code,stage){super(code);this.code=cod
 function configuration(env){
  const required=['BROWSERLESS_TOKEN','THRIVE_EMAIL','THRIVE_PASSWORD'];
  if(required.some(k=>!env[k]))throw new SyncError('NOT_CONFIGURED','setup');
- return {token:env.BROWSERLESS_TOKEN,email:env.THRIVE_EMAIL,password:env.THRIVE_PASSWORD};
+ const organisation=env.THRIVE_ORGANISATION||'Dynamo School Of Gymnastics';if(typeof organisation!=='string'||!organisation.trim()||organisation.length>160||/[\r\n]/.test(organisation))throw new SyncError('NOT_CONFIGURED','setup');
+ return {token:env.BROWSERLESS_TOKEN,email:env.THRIVE_EMAIL,password:env.THRIVE_PASSWORD,organisation:organisation.trim()};
 }
 function inspectDownload({filename,data}){
  if(typeof data!=='string'||data.length>Math.ceil(MAX_BYTES/3)*4+4)throw new SyncError('INVALID_EXPORT','download');
@@ -55,13 +56,13 @@ async function exportContacts(env,{chromium,includeWorkbook=false,onProgress=()=
   await page.locator('#login_email').fill(config.email);await page.locator('#login_password').fill(config.password);
   await page.locator('#login_submit').click();
   await page.waitForURL(url=>url.hash.startsWith('#/app/business/'),{timeout:25000});
-  stage='organisation';onProgress({percent:35,label:'Opening Dynamo Gymnastics'});console.info('Thrive export stage: organisation');
+  stage='organisation';onProgress({percent:35,label:'Opening '+config.organisation});console.info('Thrive export stage: organisation');
   const navigation=page.getByRole('menuitem',{name:'Contact management',exact:true});
-  const organisation=page.getByText('Dynamo School Of Gymnastics',{exact:true});
+  const organisation=page.getByText(config.organisation,{exact:true});
   check='organisation chooser or club menu';console.info('Thrive export check:',check);
   await navigation.or(organisation).first().waitFor({state:'visible'});
   if(!await navigation.isVisible()){
-   check='select Dynamo organisation';console.info('Thrive export check:',check);
+   check='select configured organisation';console.info('Thrive export check:',check);
    await organisation.click();
   }
   check='club navigation after selection';console.info('Thrive export check:',check);

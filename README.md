@@ -62,3 +62,18 @@ Tables have RLS and no anonymous/authenticated access grants; the roster RPC is 
 ### Confirmed Thrive4 export format
 
 The inspected full Contacts export has 896 rows and seven headings: `last name`, `first name`, `time and class`, `account owner`, `owner email`, `*bg membership number`, `date of birth`. It contains no contact ID or active status. The configured contract uses recognised assigned classes as current enrolment and derives a profile key from canonical owner email, first/last name and DOB. Changes to class or BG number do not change profile identity. Missing/invalid DOB or duplicate identity blocks a gymnast import; staff-only/non-member rows do not require a child DOB. A changed name/DOB/owner matching a missing existing profile is held for review to avoid silently replacing its permanent ID. Historical profiles remain when membership ends. This derived identity cannot supply the same guarantees as a provider-issued immutable ID; deliberate identity corrections need an administrator reconciliation workflow.
+
+
+## Two Thrive4 organisations
+
+Production credentials are configured in Vercel → Dynamo Gymnastics → Settings → Environment Variables. Never put passwords in Git or public/client-prefixed variables. Redeploy after changing them.
+
+- Dynamo: replace existing `THRIVE_EMAIL` and `THRIVE_PASSWORD`. `THRIVE_ORGANISATION` is optional and defaults to the existing exact name `Dynamo School Of Gymnastics`.
+- Gymtots: add `GYMTOTS_THRIVE_EMAIL` and `GYMTOTS_THRIVE_PASSWORD`. Adding either enables the second source, and both must be complete before any membership changes can be applied. `GYMTOTS_THRIVE_ENABLED=true` can also explicitly require it.
+- `GYMTOTS_THRIVE_ORGANISATION` defaults to `Gymtots R OK`; override it if the organisation's name in the Thrive4 chooser differs. Organisation matching is exact.
+- `GYMTOTS_THRIVE_EXPORT_MAPPING` is optional if the headers match Dynamo. It otherwise uses `THRIVE_EXPORT_MAPPING`. Gymtots identities use parent email + child name + DOB to match existing profiles, rather than per-organisation numeric contact IDs. Existing class rules still apply; unknown labels grant no membership and are reported for review.
+- Both organisations use the existing `BROWSERLESS_TOKEN`. Downloads run in separate sequential sessions, so no extra concurrent-browser allowance is needed.
+
+Apply `database/multi-organisation-sync.sql` before deploying. Manual and scheduled syncs share one pipeline: download and validate all sources, combine parents/children and active class groups, then commit one atomic roster update. Account/profile IDs, medical details, purchases, wallet and history survive. No emails are sent by the member sync.
+
+Each organisation has an independent incomplete-export check. Once Gymtots has synced successfully, removing its settings will block subsequent single-source imports, preserving memberships until both sources are restored. Syncs still run at 00:00 and 12:00 Europe/London. Both HTTP functions allow 300 seconds and the job lock allows six minutes before recovery.
