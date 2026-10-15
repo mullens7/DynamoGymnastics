@@ -25,7 +25,7 @@ function workbook(label){
 }
 test('both exports validate before one combined save, with monotonic progress and existing identity unchanged',async()=>{
  const actions=[],progress=[];let saved;
- const services={exportContacts:async(e,{onProgress})=>{actions.push(e.THRIVE_EMAIL);onProgress({percent:65,label:'Downloading'});return {format:'xlsx',workbook:e.THRIVE_EMAIL};},readWorkbook:async key=>workbook(key===env.THRIVE_EMAIL?'Gymini':'Gymtots'),prepareRoster,fetch:async(url,options)=>{actions.push('save');assert.match(url,/apply_dynamo_rosters$/);saved=JSON.parse(options.body);return {ok:true,json:async()=>({accounts:1,members:1,staff:0})};}};
+ const services={exportContacts:async(e,{onProgress,repairColumns})=>{assert.notEqual(repairColumns,true,'A correctly configured export must not open Manage Columns');actions.push(e.THRIVE_EMAIL);onProgress({percent:65,label:'Downloading'});return {format:'xlsx',workbook:e.THRIVE_EMAIL};},readWorkbook:async key=>workbook(key===env.THRIVE_EMAIL?'Gymini':'Gymtots'),prepareRoster,fetch:async(url,options)=>{actions.push('save');assert.match(url,/apply_dynamo_rosters$/);saved=JSON.parse(options.body);return {ok:true,json:async()=>({accounts:1,members:1,staff:0})};}};
  const result=await syncMembers(both,{onProgress:p=>progress.push(p.percent)},services);
  assert.deepEqual(actions,[env.THRIVE_EMAIL,both.GYMTOTS_THRIVE_EMAIL,'save']);assert.equal(saved.p_rows.length,1);assert.equal(saved.p_rows[0].gymnasts.length,1);assert.equal(saved.p_rows[0].gymnasts[0].sourceId,child().sourceId);assert.equal(saved.p_sources.length,2);assert.equal(result.organisations.length,2);assert.equal(result.emailsSent,0);assert.ok(progress.every((p,i)=>i===0||p>=progress[i-1]));assert.ok(progress.every(p=>p<100));
 });
@@ -40,4 +40,14 @@ test('spreadsheet rejection retains the correct organisation and transient scree
  let saves=0;
  const services={exportContacts:async(e,options)=>{assert.equal(options.captureDiagnostics,true);return {format:'xlsx',workbook:e.THRIVE_EMAIL,diagnostic:{reason:'Export downloaded',image:'bWFza2Vk'}};},readWorkbook:async key=>{if(key===both.GYMTOTS_THRIVE_EMAIL)throw Object.assign(Error('invalid'),{code:'INVALID_ROSTER',stage:'validation',validation:{reason:'The account owner email is missing or invalid.',row:9}});return workbook('Gymini');},prepareRoster,fetch:async()=>{saves++;}};
  await assert.rejects(syncMembers(both,{},services),error=>{assert.equal(error.organisation,'Gymtots R OK');assert.equal(error.validation.row,9);assert.equal(error.diagnostic.image,'bWFza2Vk');return true;});assert.equal(saves,0);
+});
+test('only missing exported headings trigger one repair; both organisations still save atomically',async()=>{
+ const calls=[];let saved=0;
+ const services={exportContacts:async(e,options)=>{calls.push({email:e.THRIVE_EMAIL,repair:options.repairColumns===true});return {format:'xlsx',workbook:options.repairColumns?'repaired':e.THRIVE_EMAIL};},readWorkbook:async key=>{if(key===env.THRIVE_EMAIL)throw Object.assign(Error('missing headings'),{code:'INVALID_ROSTER',missingColumns:true});return workbook(key==='repaired'?'Gymini':'Gymtots');},prepareRoster,fetch:async()=>{saved++;return {ok:true,json:async()=>({accounts:1,members:1,staff:0})};}};
+ const result=await syncMembers(both,{},services);assert.equal(result.membershipUpdated,true);assert.equal(saved,1);assert.deepEqual(calls,[{email:env.THRIVE_EMAIL,repair:false},{email:env.THRIVE_EMAIL,repair:true},{email:both.GYMTOTS_THRIVE_EMAIL,repair:false}]);
+});
+test('invalid contact values never open column management; repeated missing headings stop after one repair',async()=>{
+ let exports=0,saves=0;const services={exportContacts:async()=>{exports++;return {format:'xlsx',workbook:'fixture'};},readWorkbook:async()=>{throw Object.assign(Error('bad row'),{code:'INVALID_ROSTER'});},prepareRoster,fetch:async()=>{saves++;}};
+ await assert.rejects(syncMembers(env,{},services),{code:'INVALID_ROSTER'});assert.equal(exports,1);assert.equal(saves,0);
+ exports=0;services.readWorkbook=async()=>{throw Object.assign(Error('missing headings'),{code:'INVALID_ROSTER',missingColumns:true});};await assert.rejects(syncMembers(env,{},services),{code:'INVALID_ROSTER'});assert.equal(exports,2);assert.equal(saves,0);
 });

@@ -56,7 +56,7 @@ async function captureDiagnostic(page,reason){
  }catch{diagnostic.screenshotUnavailable='The browser could not capture a masked screenshot.';}
  return diagnostic;
 }
-async function exportContacts(env,{chromium,includeWorkbook=false,captureDiagnostics=false,onProgress=()=>{}}={}){
+async function exportContacts(env,{chromium,includeWorkbook=false,captureDiagnostics=false,repairColumns=false,onProgress=()=>{}}={}){
  const config=configuration(env),started=Date.now();onProgress({percent:5,label:'Connecting to Thrive4'});let browser,stage='connect',check='browser connection',deadline,page;
  // Diagnostics are transient masked images; no traces, credentials or member files are logged or saved.
  const task=(async()=>{
@@ -93,7 +93,7 @@ async function exportContacts(env,{chromium,includeWorkbook=false,captureDiagnos
   check='Contacts Export button';console.info('Thrive export check:',check);
   await page.getByText('Export',{exact:true}).waitFor({state:'visible',timeout:30000});
   console.info('Thrive export contacts: export control ready');
-  if(includeWorkbook){check='configure required export columns';onProgress({percent:55,label:'Checking required export columns'});await ensureExportColumns(page,env);}
+  if(repairColumns){check='configure required export columns';onProgress({percent:55,label:'Checking required export columns'});await ensureExportColumns(page,env);}
   // Validate the downloaded workbook before applying any membership changes.
   stage='download';onProgress({percent:65,label:'Downloading the member export'});check='enable download transfer';console.info('Thrive export stage: download');const cdp=await context.newCDPSession(page);
   await cdp.send('Browserless.setDownloadEnabled',{enabled:true});

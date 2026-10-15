@@ -20,20 +20,33 @@ async function syncMembers(env,{onProgress=()=>{}}={},services={exportContacts,r
  // Close each Browserless session before opening the next. All exports must
  // pass validation before the single database transaction can change membership.
  for(let index=0;index<sources.length;index++){
-  const source=sources[index],progress=item=>onProgress({percent:Math.floor(5+(index+Math.min(item.percent,80)/80)*75/sources.length),label:source.name+' — '+item.label});
+  let sourceProgress=0;
+  const source=sources[index],progress=item=>{sourceProgress=Math.max(sourceProgress,Math.floor(5+(index+Math.min(item.percent,80)/80)*75/sources.length));onProgress({percent:sourceProgress,label:source.name+' — '+item.label});};
   let download;
   try{
-   download=await services.exportContacts(source.env,{includeWorkbook:true,captureDiagnostics:true,onProgress:progress});
-   if(download.format!=='xlsx'){const error=new RosterError('INVALID_ROSTER');error.validation={reason:'The export is not an XLSX workbook. Export Contacts as Excel XLSX.'};throw error;}
-   onProgress({percent:Math.floor(5+(index+.95)*75/sources.length),label:'Checking '+source.name+' memberships'});
-   const report={},workbook=await services.readWorkbook(download.workbook);
+   const exportOptions={includeWorkbook:true,captureDiagnostics:true,onProgress:progress};
+   download=await services.exportContacts(source.env,exportOptions);
    let mapping=source.config.mapping;
    if(source.key==='gymtots'){
-    // Derived identities match the existing Dynamo profiles across organisations.
-    // Per-organisation numeric contact IDs are not globally unique.
+    // Per-organisation numeric IDs are not globally unique.
     mapping={...mapping,identityPolicy:'email_name_dob'};delete mapping.id;
    }
-   source.owners=services.prepareRoster(workbook,mapping,report);
+   const report={};
+   const validate=async()=>{
+    if(download.format!=='xlsx'){const error=new RosterError('INVALID_ROSTER');error.validation={reason:'The export is not an XLSX workbook. Export Contacts as Excel XLSX.'};throw error;}
+    onProgress({percent:(sourceProgress=Math.max(sourceProgress,Math.floor(5+(index+.95)*75/sources.length))),label:'Checking '+source.name+' memberships'});
+    const workbook=await services.readWorkbook(download.workbook);
+    return services.prepareRoster(workbook,mapping,report);
+   };
+   try{source.owners=await validate();}
+   catch(error){
+    // Always try the account's saved export first. Column controls must never
+    // block a valid export. Only missing headings trigger one repair attempt.
+    if(!error.missingColumns)throw error;
+    onProgress({percent:(sourceProgress=Math.max(sourceProgress,Math.floor(5+(index+.95)*75/sources.length))),label:'Restoring missing export columns for '+source.name});
+    download=await services.exportContacts({...source.env,THRIVE_EXPORT_MAPPING:JSON.stringify(mapping)},{...exportOptions,repairColumns:true});
+    source.owners=await validate();
+   }
    reports.push({...report,key:source.key,name:source.name});
   }catch(error){error.organisation=source.name;error.stage ||= 'validation';error.diagnostic ||= download?.diagnostic;throw error;}
  }

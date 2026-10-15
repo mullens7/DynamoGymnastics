@@ -20,7 +20,7 @@ async function readWorkbook(buffer){
    if(keys.some(k=>['timeandclass','timeclass'].includes(k))&&keys.some(k=>['owneremail','accountowneremail','emailaddress','email'].includes(k))){candidates.push({sheet,header:i,columns});break;}
   }
  }
- if(candidates.length!==1)throw invalid(candidates.length?'More than one worksheet contains the contact export headings.':'No worksheet contains both the Time and Class and owner email headings in its first ten rows.');
+ if(candidates.length!==1){const error=invalid(candidates.length?'More than one worksheet contains the contact export headings.':'No worksheet contains both the Time and Class and owner email headings in its first ten rows.');error.missingColumns=candidates.length===0;throw error;}
  const result=candidates[0];if(result.sheet.rowCount>20001)throw invalid('The export exceeds the 20,000-contact limit.');
  result.rows=[];result.sheet.eachRow((row,index)=>{if(index>result.header&&row.actualCellCount)result.rows.push(row);});
  if(!result.rows.length)throw new RosterError('EMPTY_ROSTER');return result;
@@ -28,7 +28,7 @@ async function readWorkbook(buffer){
 function columnMap(columns,mapping){
  const byName=new Map();for(const c of columns){const key=normal(c.label);if(byName.has(key))throw invalid('Two export column headings have the same name.');byName.set(key,c.index);}
  const required=['email','firstName','lastName','timeClass'];const mapped={};
- for(const [field,label] of Object.entries(mapping)){if(field==='activeValues'||field==='membershipPolicy'||field==='identityPolicy')continue;const index=byName.get(normal(label));if(!index)throw new RosterError('ROSTER_MAPPING_REQUIRED');mapped[field]=index;}
+ for(const [field,label] of Object.entries(mapping)){if(field==='activeValues'||field==='membershipPolicy'||field==='identityPolicy')continue;const index=byName.get(normal(label));if(!index)throw Object.assign(new RosterError('ROSTER_MAPPING_REQUIRED'),{missingColumns:true});mapped[field]=index;}
  if((!mapped.id&&(mapping.identityPolicy!=='email_name_dob'||!mapped.dateOfBirth))||required.some(k=>!mapped[k])||(!mapped.status&&mapping.membershipPolicy!=='assigned_classes'))throw new RosterError('ROSTER_MAPPING_REQUIRED');
  if(mapped.status&&(!Array.isArray(mapping.activeValues)||!mapping.activeValues.length))throw new RosterError('ROSTER_MAPPING_REQUIRED');return mapped;
 }
