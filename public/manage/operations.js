@@ -10,6 +10,7 @@ function operationalWarnings(){
  const notices=[];
  if(health.sync?.status==='failed'||!health.lastSyncedAt||Date.now()-new Date(health.lastSyncedAt).getTime()>14*60*60*1000)notices.push('<p>Member sync needs attention. The last successful memberships are retained. <button type="button" class="secondary" data-health-sync="1">Sync Members</button></p>');
  if(health.confirmationAttention)notices.push('<p>'+health.confirmationAttention+' customer confirmation(s) need delivery review. <button type="button" class="secondary" data-tab="event-email">Review confirmations</button></p>');
+ if(health.awardConfirmationAttention)notices.push('<p>'+health.awardConfirmationAttention+' award confirmation(s) need delivery review. <button type="button" class="secondary" data-tab="award-email">Review award confirmations</button></p>');
  if(health.partyAlertAttention)notices.push('<p>'+health.partyAlertAttention+' party booking alert(s) need delivery review. <button type="button" class="secondary" data-tab="party-email">Review party alerts</button></p>');
  return notices.length?'<div class="panel" style="padding:16px;margin-bottom:20px" role="status"><h2 style="font-size:1.1rem">Needs attention</h2>'+notices.join('')+'</div>':'';
 }

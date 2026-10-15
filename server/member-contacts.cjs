@@ -25,12 +25,13 @@ module.exports=async function(req,res){
   let lastSyncedAt=syncs[0]?.finished_at||null;
   if(!lastSyncedAt){const rosterUrl=new URL(config.url+'/rest/v1/dynamo_roster_runs?select=completed_at&order=completed_at.desc&limit=1');const rosterResponse=await fetch(rosterUrl,{headers:config.headers,redirect:'error',signal:AbortSignal.timeout(15000)});if(!rosterResponse.ok)throw new Error('Sync status unavailable');const runs=await rosterResponse.json();lastSyncedAt=runs[0]?.completed_at||null;}
   const {all}=require('./store.cjs');
-  const [recentSync,confirmations,partyAlerts,manualConfirmations]=await Promise.all([
+  const [recentSync,confirmations,partyAlerts,manualConfirmations,awardConfirmations]=await Promise.all([
    all(process.env,'dynamo_sync_jobs?select=status,error_code,started_at,finished_at,attempts&order=started_at.desc&limit=1'),
    all(process.env,'dynamo_confirmation_jobs?select=id,status&status=in.(pending,sending,review)'),
    all(process.env,'dynamo_party_alerts?select=booking_id,status&status=in.(pending,sending,review)'),
-   all(process.env,'dynamo_manual_confirmations?select=id,status&status=in.(sending,review)')
+   all(process.env,'dynamo_manual_confirmations?select=id,status&status=in.(sending,review)'),
+   all(process.env,'dynamo_award_confirmation_jobs?select=id,status&status=in.(pending,sending,review)')
   ]);
-  return res.status(200).json({accounts:accounts.map(account=>require('./roles.cjs').staffAccess(account)),lastSyncedAt,health:{lastSyncedAt,sync:recentSync[0]||null,confirmationAttention:confirmations.length+manualConfirmations.length,partyAlertAttention:partyAlerts.length}});
+  return res.status(200).json({accounts:accounts.map(account=>require('./roles.cjs').staffAccess(account)),lastSyncedAt,health:{lastSyncedAt,sync:recentSync[0]||null,confirmationAttention:confirmations.length+manualConfirmations.length,partyAlertAttention:partyAlerts.length,awardConfirmationAttention:awardConfirmations.length}});
  }catch{return res.status(502).json({error:'CONTACTS_UNAVAILABLE',message:'Contacts could not be loaded.'});}
 };

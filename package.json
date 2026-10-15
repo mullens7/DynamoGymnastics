@@ -16,7 +16,12 @@
   "playwright-core": "1.64.0",
   "qr-scanner": "1.4.2",
   "qrcode": "1.5.4",
-  "sharp": "0.34.5",
+  "sharp": "0.35.5",
   "stripe": "23.0.0"
+ },
+ "overrides": {
+  "exceljs": {
+   "uuid": "11.1.1"
+  }
  }
 }

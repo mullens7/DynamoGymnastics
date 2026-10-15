@@ -1,7 +1,7 @@
 begin;
 set local role service_role;
 do $$
-declare a uuid:=gen_random_uuid();b uuid:=gen_random_uuid();actor uuid:=gen_random_uuid();g uuid:=gen_random_uuid();g2 uuid:=gen_random_uuid();e uuid:=gen_random_uuid();e2 uuid:=gen_random_uuid();restricted uuid:=gen_random_uuid();party uuid:=gen_random_uuid();otherparty uuid:=gen_random_uuid();op uuid:=gen_random_uuid();op2 uuid:=gen_random_uuid();codeid uuid:=gen_random_uuid();codeid2 uuid:=gen_random_uuid();result jsonb;result2 jsonb;booking uuid;booking2 uuid;tx uuid;balance bigint;n integer;
+declare a uuid:=gen_random_uuid();b uuid:=gen_random_uuid();actor uuid:=gen_random_uuid();g uuid:=gen_random_uuid();g2 uuid:=gen_random_uuid();e uuid:=gen_random_uuid();e2 uuid:=gen_random_uuid();restricted uuid:=gen_random_uuid();party uuid:=gen_random_uuid();otherparty uuid:=gen_random_uuid();overlapdestination uuid:=gen_random_uuid();destinationparty uuid:=gen_random_uuid();op uuid:=gen_random_uuid();op2 uuid:=gen_random_uuid();codeid uuid:=gen_random_uuid();codeid2 uuid:=gen_random_uuid();result jsonb;result2 jsonb;booking uuid;booking2 uuid;tx uuid;balance bigint;n integer;
 begin
  insert into public.dynamo_accounts(id,email,roster_member) values(a,'fixture-a-'||a||'@example.invalid',true),(b,'fixture-b-'||b||'@example.invalid',false),(actor,'fixture-admin-'||actor||'@example.invalid',false);
  insert into public.dynamo_gymnasts(id,account_id,source_id,first_name,last_name,date_of_birth,groups,active) values(g,a,'manual:'||g,'Fixture','One','2020-01-01',array['gymini'],true),(g2,b,'manual:'||g2,'Fixture','Two','2020-01-01','{}',false);
@@ -31,9 +31,11 @@ begin
  perform public.refund_dynamo_wallet_payment(tx,actor,700,'Fixture remaining refund',gen_random_uuid());if (select status from public.dynamo_transactions where id=tx)<>'refunded' or (select wallet_pence from public.dynamo_accounts where id=a)<>2000 then raise exception 'full refund failed';end if;
  perform public.manage_dynamo_booking('event',booking,actor,'cancel',null,null,null,gen_random_uuid());if (select count(*) from public.dynamo_purchases where account_id=a)<>1 then raise exception 'purchase history lost';end if;
  insert into public.dynamo_parties(id,details) values(party,jsonb_build_object('name','Fixture birthday','date','2030-02-01','time','15:30','room','Big gym','status','Confirmed','guests',20,'memberPriceCents',0,'nonMemberPriceCents',0)),(otherparty,jsonb_build_object('name','Other party','date','2030-02-02','time','14:00','room','Big gym','status','Confirmed','guests',20,'memberPriceCents',0,'nonMemberPriceCents',0));
+ insert into public.dynamo_parties(id,details) values(overlapdestination,jsonb_build_object('name','Overlapping destination','date','2030-02-02','time','13:30','room','Big gym','status','Pending','guests',20,'memberPriceCents',0,'nonMemberPriceCents',0)),(destinationparty,jsonb_build_object('name','Available destination','date','2030-02-03','time','13:00','room','Big gym','status','Pending','guests',20,'memberPriceCents',0,'nonMemberPriceCents',0));
+ perform public.book_dynamo_session('party',otherparty,b,g2,false,gen_random_uuid());
  result:=public.book_dynamo_session('party',party,a,g,false,gen_random_uuid());booking:=(result->>'bookingId')::uuid;
- begin perform public.manage_dynamo_booking('party',booking,actor,'move',null,'2030-02-02','13:00',gen_random_uuid());raise exception 'party overlap accepted';exception when others then if sqlerrm<>'PARTY_SLOT_TAKEN' then raise;end if;end;
- perform public.manage_dynamo_booking('party',booking,actor,'move',null,'2030-02-03','13:00',gen_random_uuid());if (select details->>'time' from public.dynamo_parties where id=party)<>'13:00' then raise exception 'party move failed';end if;
+ begin perform public.manage_dynamo_booking('party',booking,actor,'move',overlapdestination,'2030-02-02','13:30',gen_random_uuid());raise exception 'party overlap accepted';exception when others then if sqlerrm<>'PARTY_SLOT_TAKEN' then raise;end if;end;
+ perform public.manage_dynamo_booking('party',booking,actor,'move',destinationparty,'2030-02-03','13:00',gen_random_uuid());if (select party_id from public.dynamo_party_bookings where id=booking)<>destinationparty or (select details->>'time' from public.dynamo_parties where id=party)<>'15:30' then raise exception 'party move failed';end if;
 end;$$;
 rollback;
 select 'OTP limits, account identity, wallet debits/refunds, moves, capacity, ownership and history verified; fixtures rolled back' as result;
