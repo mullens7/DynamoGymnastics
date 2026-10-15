@@ -3,6 +3,7 @@ const {authorizeAdmin}=require('./admin-auth.cjs');
 const {confirmPin,performSync}=require('./sync-operation.cjs');
 const {exportContacts}=require('./thrive-export.cjs');
 const {readWorkbook}=require('./member-roster.cjs');
+const {sourceConfigurations}=require('./roster-sources.cjs');
 const messages={COLUMN_SETUP_FAILED:'Thrive4 export columns could not be configured. Check the details and masked screenshot below. No records were changed.',GYMTOTS_NOT_CONFIGURED:'Complete both Gymtots Thrive4 login settings before syncing. No memberships were changed.',ROSTER_SOURCE_MISSING:'A previously connected organisation is missing. Restore its sync settings; existing memberships were preserved.',PIN_NOT_CONFIGURED:'The staff confirmation code has not been configured.',PIN_INCORRECT:'The four-digit confirmation code is incorrect.',PIN_LOCKED:'Too many incorrect codes. Please wait five minutes before trying again.',SYNC_BUSY:'A member sync is already running. Please wait for it to finish.',DATABASE_NOT_CONFIGURED:'The Dynamo account database is not connected yet. No records were changed.',ROSTER_MAPPING_REQUIRED:'The export identity and active membership columns must be configured first. No records were changed.',INVALID_ROSTER:'The Excel export could not be validated. No records were changed.',EMPTY_ROSTER:'The export is empty. Existing memberships were preserved.',ROSTER_REVIEW_REQUIRED:'A class label needs review. Existing memberships were preserved.',SNAPSHOT_REVIEW_REQUIRED:'The export is substantially smaller than the last sync. Existing memberships were preserved pending review.',STALE_SNAPSHOT:'A newer sync already completed. Existing memberships were preserved.',IDENTITY_REVIEW_REQUIRED:'A gymnast identity needs review: missing or invalid birth date, duplicate details, or changed name/owner. Existing records were preserved.',SYNC_STORAGE_FAILED:'The database update could not be completed. No partial membership update was applied.',STEP_TIMEOUT:'The current automation step timed out. Check the reported step below.',BROWSER_CONNECTION_REJECTED:'Browserless rejected the browser connection. Check your API token and account endpoint.',NOT_CONFIGURED:'Browserless and Thrive4 credentials have not been configured.',INVALID_EXPORT:'The downloaded file was not recognised as an Excel export.',EXPORT_TIMEOUT:'Thrive4 did not finish the export in time.',SESSION_TIMEOUT:'The free-plan test exceeded its time limit.',BROWSER_UNAVAILABLE:'A browser session could not be started.',AUTOMATION_FAILED:'The login or export flow could not be completed. Extra verification or changed page controls may need attention.'};
 const checks=['configure required export columns','Contacts page navigation','Thrive4 sign-in','enable download transfer','download Excel export','browser connection','organisation chooser or club menu','select Dynamo organisation','select configured organisation','club navigation after selection','expand Contact management','open Contacts menu','Contacts Export button'];
 function failureDetails(error){
@@ -33,11 +34,17 @@ function makeHandler(env=process.env,run=exportContacts,ops={confirmPin,performS
    catch(error){const code=Object.hasOwn(messages,error.code)?error.code:'AUTOMATION_FAILED';console.warn('Member sync:',code);send({type:'error',error:code,message:messages[code],...failureDetails(error)});}
    finally{res.end();}return;
   }
-  const result=await run(env,{includeWorkbook:mode==='inspect'});
+  const sourceKey=req.body?.source||'dynamo';
+  if(!['dynamo','gymtots'].includes(sourceKey))return res.status(400).json({error:'INVALID_SOURCE'});
+  const source=sourceConfigurations(env).find(item=>item.key===sourceKey);
+  if(!source)throw Object.assign(new Error('GYMTOTS_NOT_CONFIGURED'),{code:'GYMTOTS_NOT_CONFIGURED'});
+  let result;
+  try{result=await run(source.env,{includeWorkbook:mode==='inspect',captureDiagnostics:true});}
+  catch(error){error.organisation=source.name;throw error;}
   if(mode==='inspect'){
    if(result.format!=='xlsx')throw Object.assign(new Error('INVALID_ROSTER'),{code:'INVALID_ROSTER'});
-   const workbook=await readWorkbook(result.workbook);
-   const {workbook:discarded,...summary}=result;
+   let workbook;try{workbook=await readWorkbook(result.workbook);}catch(error){error.organisation=source.name;error.diagnostic=result.diagnostic;throw error;}
+   const {workbook:discarded,diagnostic:discardedDiagnostic,...summary}=result;
    return res.status(200).json({ok:true,...summary,columns:workbook.columns.map(c=>c.label),rowCount:workbook.rows.length,message:'Export structure checked. No records were changed or emails sent.'});
   }
   return res.status(200).json({ok:true,...result,message:'Excel download test completed. Membership records were not changed.'});

@@ -7,7 +7,7 @@ function configuration(env){
  const required=['BROWSERLESS_TOKEN','THRIVE_EMAIL','THRIVE_PASSWORD'];
  if(required.some(k=>!env[k]))throw new SyncError('NOT_CONFIGURED','setup');
  const organisation=env.THRIVE_ORGANISATION||'Dynamo School Of Gymnastics';if(typeof organisation!=='string'||!organisation.trim()||organisation.length>160||/[\r\n]/.test(organisation))throw new SyncError('NOT_CONFIGURED','setup');
- return {token:env.BROWSERLESS_TOKEN,email:env.THRIVE_EMAIL,password:env.THRIVE_PASSWORD,organisation:organisation.trim()};
+ return {token:env.BROWSERLESS_TOKEN,email:env.THRIVE_EMAIL.trim(),password:env.THRIVE_PASSWORD,organisation:organisation.trim()};
 }
 function inspectDownload({filename,data}){
  if(typeof data!=='string'||data.length>Math.ceil(MAX_BYTES/3)*4+4)throw new SyncError('INVALID_EXPORT','download');
@@ -48,9 +48,9 @@ async function captureDiagnostic(page,reason){
  const diagnostic={reason};
  if(!page)return diagnostic;
  try{
-  const route=new URL(page.url()).hash.split('?')[0].replace(/\/$/,'');
-  if(route!=='#/app/business/crm')return {...diagnostic,screenshotUnavailable:'A screenshot is available only after the Contacts page opens.'};
-  const screenshot=await page.screenshot({type:'jpeg',quality:65,timeout:3000,mask:[page.locator('.ant-table-wrapper,table,[role="rowgroup"],[role="row"],.ag-row,.k-grid-content'),page.locator('input,textarea,[contenteditable="true"]'),page.locator('[class*="avatar"],[class*="profile"],[class*="user-name"]')]});
+  const url=new URL(page.url()),route=url.hash.split('?')[0].replace(/\/$/,'');
+  if(url.hostname!=='club.thrive4.com'||!['','#','#/login','#/app/login','#/app/business/crm'].includes(route))return {...diagnostic,screenshotUnavailable:'A masked screenshot is unavailable on this Thrive4 page.'};
+  const screenshot=await page.screenshot({type:'jpeg',quality:65,timeout:3000,mask:[...(page.getByText?[page.getByText(/[^\s@]+@[^\s@]+\.[^\s@]+/)]:[]),page.locator('.ant-table-wrapper,table,[role="rowgroup"],[role="row"],.ag-row,.k-grid-content'),page.locator('input,textarea,[contenteditable="true"]'),page.locator('[class*="avatar"],[class*="profile"],[class*="user-name"]')]});
   if(screenshot.length<750000)diagnostic.image=screenshot.toString('base64');
   else diagnostic.screenshotUnavailable='The masked screenshot exceeded the size limit.';
  }catch{diagnostic.screenshotUnavailable='The browser could not capture a masked screenshot.';}

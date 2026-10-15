@@ -51,11 +51,11 @@ test('Export geometry fallback only activates a visible enabled control',async()
  evaluations=0;control.isEnabled=async()=>true;control.click=async()=>{throw new Error('overlay intercepts pointer events')};
  await assert.rejects(clickExportControl(control),/overlay/);assert.equal(activated,0);
 });
-test('masked diagnostics capture Contacts only, restrict size and survive screenshot failure',async()=>{
+test('masked diagnostics capture login and Contacts, restrict size and survive screenshot failure',async()=>{
  const {captureDiagnostic}=require('../server/thrive-export.cjs');let calls=0;const selectors=[];
  const page={url:()=> 'https://club.thrive4.com/#/app/business/crm',locator:selector=>{selectors.push(selector);return {};},screenshot:async options=>{calls++;assert.equal(options.mask.length,3);return Buffer.from('masked-fixture');}};
  let result=await captureDiagnostic(page,'Export downloaded');assert.equal(result.image,Buffer.from('masked-fixture').toString('base64'));assert.ok(selectors.some(s=>s.includes('input')));assert.ok(selectors.some(s=>s.includes('rowgroup')));
- page.url=()=> 'https://club.thrive4.com/#/login';result=await captureDiagnostic(page,'Login failed');assert.equal(calls,1);assert.equal(result.image,undefined);assert.ok(result.screenshotUnavailable);
+ page.url=()=> 'https://club.thrive4.com/#/login';result=await captureDiagnostic(page,'Login failed');assert.equal(calls,2);assert.ok(result.image);
  page.url=()=> 'https://club.thrive4.com/#/app/business/crm';page.screenshot=async()=>{throw Error('private DOM');};result=await captureDiagnostic(page,'Download failed');assert.equal(result.image,undefined);assert.equal(JSON.stringify(result).includes('private DOM'),false);
 });
 test('browser cleanup preserves trusted column-setup errors and safe validation detail',async()=>{
@@ -64,4 +64,10 @@ test('browser cleanup preserves trusted column-setup errors and safe validation 
  const page={setViewportSize:async()=>{},setDefaultTimeout(){},setDefaultNavigationTimeout(){},goto:async()=>{throw failure},url:()=> 'https://club.thrive4.com/#/login'};
  const browser={contexts:()=>[{newPage:async()=>page}],close:async()=>{closed=true;}};
  await assert.rejects(exportContacts({BROWSERLESS_TOKEN:'fixture',THRIVE_EMAIL:'fixture@example.invalid',THRIVE_PASSWORD:'fixture'},{chromium:{connectOverCDP:async()=>browser}}),error=>{assert.equal(error.code,'COLUMN_SETUP_FAILED');assert.equal(error.stage,'contacts');assert.match(error.validation.reason,/finding/);assert.ok(error.diagnostic);return true;});assert.equal(closed,true);
+});
+test('read-only export inspection selects configured Gymtots credentials without accepting arbitrary sources',async()=>{
+ let called=0;const env={SYNC_TEST_KEY:key,THRIVE_EMAIL:'dynamo@example.invalid',THRIVE_PASSWORD:'dynamo-fixture',GYMTOTS_THRIVE_EMAIL:'gymtots@example.invalid',GYMTOTS_THRIVE_PASSWORD:'gymtots-fixture'};
+ const handler=makeHandler(env,async selected=>{called++;assert.equal(selected.THRIVE_EMAIL,env.GYMTOTS_THRIVE_EMAIL);assert.equal(selected.THRIVE_PASSWORD,env.GYMTOTS_THRIVE_PASSWORD);throw Object.assign(Error('private upstream text'),{code:'STEP_TIMEOUT',stage:'login'});});
+ let r=response();await handler({method:'POST',headers:{authorization:'Bearer '+key},body:{mode:'inspect',source:'gymtots'}},r);assert.equal(r.body.organisation,'Gymtots R OK');assert.equal(r.body.stage,'login');assert.equal(JSON.stringify(r.body).includes('private upstream'),false);
+ r=response();await handler({method:'POST',headers:{authorization:'Bearer '+key},body:{mode:'inspect',source:'https://arbitrary.invalid'}},r);assert.equal(r.code,400);assert.equal(called,1);
 });
