@@ -1,4 +1,5 @@
 const {createHash}=require('node:crypto');
+const {ensureExportColumns}=require('./thrive-columns.cjs');
 const MAX_BYTES=15*1024*1024;
 class SyncError extends Error {constructor(code,stage){super(code);this.code=code;this.stage=stage;}}
 function configuration(env){
@@ -91,8 +92,8 @@ async function exportContacts(env,{chromium,includeWorkbook=false,captureDiagnos
   check='Contacts Export button';console.info('Thrive export check:',check);
   await page.getByText('Export',{exact:true}).waitFor({state:'visible',timeout:30000});
   console.info('Thrive export contacts: export control ready');
-  // Workbook-column validation belongs to the import stage. This endpoint
-  // only tests downloading and never grants membership from visible columns.
+  if(includeWorkbook){check='configure required export columns';onProgress({percent:55,label:'Checking required export columns'});await ensureExportColumns(page,env);}
+  // Validate the downloaded workbook before applying any membership changes.
   stage='download';onProgress({percent:65,label:'Downloading the member export'});check='enable download transfer';console.info('Thrive export stage: download');const cdp=await context.newCDPSession(page);
   await cdp.send('Browserless.setDownloadEnabled',{enabled:true});
   let downloadTimer,listener;
