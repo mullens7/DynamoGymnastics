@@ -17,7 +17,8 @@ function destination(user){
  const trusted=url.origin===location.origin||live&&url.protocol==='https:'&&['dynamogymnastics.co.uk','www.dynamogymnastics.co.uk','manage.dynamogymnastics.co.uk'].includes(url.host);
  if(!trusted)return fallback;
  if(url.pathname==='/manage/'&&user&&!user.managementAccess)url.pathname=user.permissions?.includes('resources.read')?'/staff/':'/account/';
- const allowed=/^(?:\/events\/[a-z0-9]+(?:-[a-z0-9]+)*\/)$/.test(url.pathname)||['/','/awards/','/awards/gyminis/','/awards/recreational/','/events/','/results/','/parties/','/gallery/','/classes/','/terms/','/policies/','/contact-us/','/account/','/book/','/manage/','/manage/party-print/','/staff/'].includes(url.pathname);
+ const customEventPath=/^\/[a-z0-9]+(?:-[a-z0-9]+)*\/$/.test(url.pathname)&&!['/auth/','/api/','/assets/'].includes(url.pathname);
+ const allowed=customEventPath||/^(?:\/events\/[a-z0-9]+(?:-[a-z0-9]+)*\/)$/.test(url.pathname)||['/','/awards/','/awards/gyminis/','/awards/recreational/','/events/','/results/','/parties/','/gallery/','/classes/','/terms/','/policies/','/contact-us/','/account/','/book/','/manage/','/manage/party-print/','/staff/'].includes(url.pathname);
  if(!allowed)return fallback;
  return live?'https://dynamogymnastics.co.uk'+url.pathname+url.search+url.hash:url.pathname+url.search+url.hash;
 }

@@ -6,6 +6,7 @@ function validateEvent(input){
  const name=String(input.name||'').trim(),slug=input.slug===undefined?slugify(name):String(input.slug).trim();
  if(!name||name.length>120)throw Error('Enter an event name of up to 120 characters.');
  if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)||slug.length>100||['detail','events','index'].includes(slug))throw Error('Use a link containing lowercase letters, numbers and hyphens.');
+ if(input.rootLink===true&&['api','assets','auth','manage','account','book','staff','awards','events','results','gallery','classes','parties','contact-us','terms','policies','legal','octoberhalfterm','index','detail'].includes(slug))throw Error('That link is reserved for a website page. Choose another.');
  const description=String(input.description||'').trim();if(description.length>10000)throw Error('Description must be under 10,000 characters.');
  if(!['Draft','Published'].includes(input.status)||!['everyone','members','groups'].includes(input.audience))throw Error('Choose a status and audience.');
  const allowedGroups=input.allowedGroups||[];if(!Array.isArray(allowedGroups)||allowedGroups.some(g=>!Object.hasOwn(groups,g))||(input.audience==='groups'&&!allowedGroups.length))throw Error('Choose valid member groups.');
@@ -21,6 +22,6 @@ function validateEvent(input){
  const label=String(s.label||'').trim();if(label.length>100)throw Error('Age group / session label must be under 100 characters.');
  const endTime=s.endTime||'';if(endTime&&(!/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)||endTime<=s.time))throw Error('Session end time must be after its start time.');return {id,date:s.date,time:s.time,endTime,capacity:s.capacity,label,minAge,maxAge};
  });sessions.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
- return {name,slug,description,image,...require('./event-pricing.cjs').validatePricing(input,sessions),qrEmail:typeof input.qrEmail==='boolean'?input.qrEmail:null,bookingFields:require('./booking-fields.cjs').validateFields(input.bookingFields),status:input.status,audience:input.audience,allowedGroups:input.audience==='groups'?[...new Set(allowedGroups)]:[],memberPriceCents:input.memberPriceCents,nonMemberPriceCents:input.nonMemberPriceCents,sessions,date:sessions[0].date,time:sessions[0].time,capacity:sessions.reduce((n,s)=>n+s.capacity,0)};
+ return {name,slug,rootLink:input.rootLink===true,description,image,...require('./event-pricing.cjs').validatePricing(input,sessions),qrEmail:typeof input.qrEmail==='boolean'?input.qrEmail:null,bookingFields:require('./booking-fields.cjs').validateFields(input.bookingFields),status:input.status,audience:input.audience,allowedGroups:input.audience==='groups'?[...new Set(allowedGroups)]:[],memberPriceCents:input.memberPriceCents,nonMemberPriceCents:input.nonMemberPriceCents,sessions,date:sessions[0].date,time:sessions[0].time,capacity:sessions.reduce((n,s)=>n+s.capacity,0)};
 }
 module.exports={validateEvent,slugify};

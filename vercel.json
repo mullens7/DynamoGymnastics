@@ -112,6 +112,10 @@
     {
       "source": "/_files/ugd/:path*",
       "destination": "/assets/policies/:path*"
+    },
+    {
+      "source": "/:eventSlug([a-z0-9-]+)/",
+      "destination": "/events/detail/"
     }
   ],
   "headers": [
