@@ -19,7 +19,7 @@ function destination(user){
  if(url.pathname==='/manage/'&&user&&!user.managementAccess)url.pathname=user.permissions?.includes('resources.read')?'/staff/':'/account/';
  const allowed=/^(?:\/events\/[a-z0-9]+(?:-[a-z0-9]+)*\/)$/.test(url.pathname)||['/','/awards/','/awards/gyminis/','/awards/recreational/','/events/','/results/','/parties/','/gallery/','/classes/','/terms/','/policies/','/contact-us/','/account/','/book/','/manage/','/manage/party-print/','/staff/'].includes(url.pathname);
  if(!allowed)return fallback;
- return live?(url.pathname.startsWith('/manage/')?'https://manage.dynamogymnastics.co.uk':'https://dynamogymnastics.co.uk')+url.pathname+url.search+url.hash:url.pathname+url.search+url.hash;
+ return live?'https://dynamogymnastics.co.uk'+url.pathname+url.search+url.hash:url.pathname+url.search+url.hash;
 }
 
 async function sendCode(){const data=await request({action:'request',email});challengeId=data.challengeId;resendAt=Date.now()+60000;clearInterval(resendTimer);resendTimer=setInterval(updateResend,250);updateResend();$('#email-form').hidden=true;$('#code-form').hidden=false;$('#intro').textContent='We sent a code to '+email+'.';clearCode();digits[0].focus();$('#status').textContent='';}
