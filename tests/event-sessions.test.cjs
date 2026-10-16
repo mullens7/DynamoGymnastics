@@ -9,3 +9,11 @@ test('direct event links are opt-in and cannot claim existing website routes',()
  for(const slug of ['auth','manage','account','book','staff','awards','results','gallery','classes','parties','contact-us','terms','policies','api','assets'])assert.throws(()=>validateEvent({...input(),slug,rootLink:true}),/reserved/);
  assert.equal(validateEvent({...input(),slug:'classes',rootLink:false}).slug,'classes');
 });
+test('event sessions support date-only, start-only and start/end timing without inventing a time',()=>{
+ const make=session=>validateEvent({...input(),sessions:[{...input().sessions[0],...session}]}).sessions[0];
+ assert.equal(make({time:'',endTime:''}).time,'');
+ assert.equal(make({time:undefined}).time,'');
+ assert.equal(make({time:'09:30'}).endTime,'');
+ assert.equal(make({time:'09:30',endTime:'12:00'}).endTime,'12:00');
+ for(const s of [{time:'',endTime:'12:00'},{time:'09:30',endTime:'09:30'},{time:'09:30',endTime:'08:00'},{time:'09:30',endTime:'25:00'}])assert.throws(()=>make(s));
+});

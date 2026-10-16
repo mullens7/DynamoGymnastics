@@ -15,12 +15,12 @@ function validateEvent(input){
  const rows=input.sessions||[{id:input.id,date:input.date,time:input.time,capacity:input.capacity,label:'',minAge:null,maxAge:null}];
  if(!Array.isArray(rows)||!rows.length||rows.length>200)throw Error('Add between 1 and 200 sessions.');
  const ids=new Set();const sessions=rows.map(s=>{const id=s.id||randomUUID();if(!uuid(id)||ids.has(id))throw Error('Choose unique sessions.');ids.add(id);
- if(!/^\d{4}-\d{2}-\d{2}$/.test(s.date||'')||isNaN(Date.parse(s.date))||new Date(s.date).toISOString().slice(0,10)!==s.date||!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.time||''))throw Error('Enter a valid date and time for every session.');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(s.date||'')||isNaN(Date.parse(s.date))||new Date(s.date).toISOString().slice(0,10)!==s.date||(s.time!=null&&s.time!==''&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)))throw Error('Enter a valid date and, if supplied, a valid start time for every session.');
  if(!Number.isInteger(s.capacity)||s.capacity<1||s.capacity>10000)throw Error('Each capacity must be between 1 and 10,000.');
  const minAge=s.minAge==null||s.minAge===''?null:Number(s.minAge),maxAge=s.maxAge==null||s.maxAge===''?null:Number(s.maxAge);
  if([minAge,maxAge].some(a=>a!==null&&(!Number.isInteger(a)||a<0||a>100))||(minAge!==null&&maxAge!==null&&minAge>maxAge))throw Error('Enter valid inclusive minimum and maximum ages.');
  const label=String(s.label||'').trim();if(label.length>100)throw Error('Age group / session label must be under 100 characters.');
- const endTime=s.endTime||'';if(endTime&&(!/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)||endTime<=s.time))throw Error('Session end time must be after its start time.');return {id,date:s.date,time:s.time,endTime,capacity:s.capacity,label,minAge,maxAge};
+ const endTime=s.endTime||'';if(endTime&&(!s.time||!/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)||endTime<=s.time))throw Error('Session end time must be after its start time.');return {id,date:s.date,time:s.time||'',endTime,capacity:s.capacity,label,minAge,maxAge};
  });sessions.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
  return {name,slug,rootLink:input.rootLink===true,description,image,...require('./event-pricing.cjs').validatePricing(input,sessions),qrEmail:typeof input.qrEmail==='boolean'?input.qrEmail:null,bookingFields:require('./booking-fields.cjs').validateFields(input.bookingFields),status:input.status,audience:input.audience,allowedGroups:input.audience==='groups'?[...new Set(allowedGroups)]:[],memberPriceCents:input.memberPriceCents,nonMemberPriceCents:input.nonMemberPriceCents,sessions,date:sessions[0].date,time:sessions[0].time,capacity:sessions.reduce((n,s)=>n+s.capacity,0)};
 }
