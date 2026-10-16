@@ -6,7 +6,7 @@ function prefillBookingInputs(item){const form=document.getElementById('booking-
 function bookingNeedsDetails(item,g,session){
  if(!g||!session)return false;
  if(g.medical_details==null&&item.medicalNone!==true&&!String(item.medicalDetails||'').trim())return true;
- if(item.kind==='party')return !String(item.partyDetails?.contactNumber||'').trim()||!Number.isInteger(item.partyDetails?.numberOfChildren)||item.partyDetails.numberOfChildren<1;
+ if(item.kind==='party'&&(!String(item.partyDetails?.contactNumber||'').trim()||!Number.isInteger(item.partyDetails?.numberOfChildren)||item.partyDetails.numberOfChildren<1||item.partyDetails.numberOfChildren>(session.guests||1000)))return true;
  const fields=session.bookingFields||[];
  if(JSON.stringify(item.fieldDefinitions||[])!==JSON.stringify(fields))return true;
  return fields.some(f=>{const v=item.answers?.[f.id];return f.type==='acknowledgement'?v!==true:f.required&&(v==null||v===''||typeof v==='string'&&!v.trim()||Array.isArray(v)&&!v.length);});

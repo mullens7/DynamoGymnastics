@@ -1,0 +1,27 @@
+begin;set local role service_role;
+do $$declare a uuid:=gen_random_uuid();g uuid:=gen_random_uuid();p uuid:=gen_random_uuid();p2 uuid:=gen_random_uuid();op uuid:=gen_random_uuid();op2 uuid:=gen_random_uuid();field jsonb:='[{"id":"party-terms","label":"I accept the party terms","type":"acknowledgement","required":true,"options":[]},{"id":"party-choice","label":"Choices","type":"multiselect","required":true,"options":["A","B"]}]';item jsonb;result jsonb;orderrow jsonb;begin
+ insert into public.dynamo_accounts(id,email,roster_member,wallet_pence) values(a,'party-extra-'||a||'@example.invalid',true,50000);
+ insert into public.dynamo_gymnasts(id,account_id,source_id,first_name,last_name,date_of_birth,groups,active,medical_details) values(g,a,'manual:'||g,'Party','Fixture','2020-01-01','{gymini}',true,'None');
+ update public.dynamo_party_types set details=details||jsonb_build_object('guests',30,'includedChildren',25,'extraChildPriceCents',500,'memberPriceCents',22500,'nonMemberPriceCents',25000,'bookingFields',field,'day',0,'times',jsonb_build_array('13:00'),'enabled',true) where id='dynamo';
+ insert into public.dynamo_parties(id,details) values(p,'{"name":"Party test","partyType":"dynamo","date":"2030-01-06","time":"13:00","room":"Big gym","guests":25,"status":"Pending"}'),(p2,'{"name":"Party test 2","partyType":"dynamo","date":"2030-01-13","time":"13:00","room":"Big gym","guests":25,"status":"Pending"}');
+ if public.dynamo_party_children_extra(p,25)<>0 or public.dynamo_party_children_extra(p,28)<>1500 or public.dynamo_party_children_extra(p,30)<>2500 then raise exception 'Extra child calculations failed';end if;
+ begin perform public.dynamo_party_children_extra(p,31);raise exception 'Accepted above maximum';exception when others then if sqlerrm<>'PARTY_CHILD_COUNT' then raise;end if;end;
+ item:=jsonb_build_object('kind','party','targetId',p,'gymnastId',g,'roomAddon',false,'partyDetails',jsonb_build_object('contactNumber','07712 345678','numberOfChildren',28),'fieldDefinitions',field,'answers',jsonb_build_object('party-terms',true,'party-choice',jsonb_build_array('A','B')));
+ begin perform public.checkout_dynamo_basket(a,jsonb_build_array(item),true,op,22500);raise exception 'Accepted tampered base-only total';exception when others then if sqlerrm<>'PRICE_CHANGED' then raise;end if;end;
+ begin perform public.checkout_dynamo_basket(a,jsonb_build_array(item||'{"answers":{}}'),true,op,24000);raise exception 'Accepted missing acknowledgements';exception when others then if sqlerrm<>'BOOKING_DATA_REQUIRED' then raise;end if;end;
+ begin perform public.checkout_dynamo_basket(a,jsonb_build_array(item||'{"fieldDefinitions":[]}'),true,op,24000);raise exception 'Accepted stale questions';exception when others then if sqlerrm<>'BOOKING_FIELDS_CHANGED' then raise;end if;end;
+ result:=public.checkout_dynamo_basket(a,jsonb_build_array(item),true,op,24000);
+ perform public.checkout_dynamo_basket(a,jsonb_build_array(item),true,op,24000);
+ if(select wallet_pence from public.dynamo_accounts where id=a)<>26000 then raise exception 'Incorrect debit or duplicate debit';end if;
+ if not exists(select 1 from public.dynamo_party_bookings b join public.dynamo_purchases u on u.id=b.purchase_id where b.party_id=p and b.price_pence=24000 and (u.details->>'pricePence')::bigint=24000 and (b.party_details->>'additionalChildren')::integer=3 and b.party_details->'responses'->0->>'value'='true' and b.party_details->'responses'->1->'value'='["A","B"]'::jsonb) then raise exception 'Price or answer snapshots missing';end if;
+ update public.dynamo_accounts set wallet_pence=1000 where id=a;
+ item:=item||jsonb_build_object('targetId',p2);
+ orderrow:=public.prepare_dynamo_card_checkout(a,'basket',jsonb_build_array(item),true,op2,24000,'acct_fixture','https://dynamogymnastics.co.uk');
+ if (orderrow->>'card_pence')::bigint<>23000 or (select wallet_pence from public.dynamo_accounts where id=a)<>1000 then raise exception 'Card remainder or wallet timing incorrect';end if;
+ perform public.attach_dynamo_card_session(op2,'cs_partyextras',now()+interval '30 minutes');
+ perform public.settle_dynamo_card_checkout(op2,'cs_partyextras','pi_partyextras',23000,true);
+ perform public.settle_dynamo_card_checkout(op2,'cs_partyextras','pi_partyextras',23000,true);
+ if(select wallet_pence from public.dynamo_accounts where id=a)<>0 then raise exception 'Wallet settlement incorrect';end if;
+ if(select count(*) from public.dynamo_party_bookings where party_id=p2 and price_pence=24000 and not payment_pending)<>1 then raise exception 'Settlement duplicate or price mismatch';end if;
+end $$;
+rollback;
