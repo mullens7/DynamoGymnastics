@@ -23,7 +23,7 @@ async function loadData(){loading=true;loadError='';loadFailures={};render();try
  const outcomes=await Promise.allSettled(jobs.map(async j=>{const body=await api(j.path);j.apply(body);}));
  outcomes.forEach((outcome,i)=>{if(outcome.status==='rejected')loadFailures[jobs[i].key]=outcome.reason.message;});
  data=next;loaded=true;
- }catch(e){loaded=false;loadError=e.message;}finally{loading=false;render();}}
+ }catch(e){loaded=false;loadError=e.message;}finally{loading=false;render();globalThis.dynamoCheckInLive?.wake();}}
 function requireStaffSession(){location.assign('/auth/?next='+encodeURIComponent('/manage/'));}
 async function bootstrap(){render();try{await refreshManagementAccess();signedIn=true;await loadData();}catch(e){if(e.status===403){$('#content').innerHTML=title('Management access','Your staff role does not include this section.')+'<a href="/staff/">Staff Portal</a> · <a href="/account/">My account</a>';}else if(e.status===401){requireStaffSession();}else{$('#content').innerHTML=title('Management','This page could not be loaded.')+'<div class="panel empty"><p role="alert">Please retry. Your login has been kept.</p><button type="button" class="primary" id="retry-management">Retry</button></div>';$('#retry-management').onclick=bootstrap;}}}
 function bookingsFor(id){return data.bookings.filter(b=>(b.event_id===id||data.events.find(e=>e.id===id)?.sessions?.some(s=>s.id===b.event_id))&&b.status==='Booked');}
@@ -60,7 +60,7 @@ function editor(id,party=false){
  if(!party)$('#audience').onchange=e=>{$('#eligible-groups').hidden=e.target.value!=='groups'};
 }
 document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
- if(b.dataset.tab&&!can(tabPermissions[b.dataset.tab]))return; if(b.dataset.tab){tab=b.dataset.tab;filter='All';query='';history.replaceState(null,'','#'+tab);render();}
+ if(b.dataset.tab&&!can(tabPermissions[b.dataset.tab]))return; if(b.dataset.tab){tab=b.dataset.tab;filter='All';query='';history.replaceState(null,'','#'+tab);render();if(tab==='attendees')window.dynamoCheckInLive?.wake();else window.dynamoCheckInLive?.pause();}
  if(b.dataset.record){const x=data[tab].find(x=>x.id===b.dataset.record);if(!x)return;if(tab==='results')resultEditor(x.id);else if(tab==='events')editor(x.id);else if(tab==='contacts')contactDetail(x);else paymentDetail(x);}
  if(b.dataset.party)showPartyBookings(b.dataset.party);
  if(b.dataset.bookings)showEventBookings(b.dataset.bookings);

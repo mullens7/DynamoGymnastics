@@ -27,3 +27,18 @@ test('check-in only shares explicitly visible current fields, and hides removed,
  fields[0].checkInVisible=false;out=res();await makeStaffAdminHandler({},services)(req('attendees'),out);assert.deepEqual(out.body.records[0].responses,[]);
  row.gymnast.medical_details=null;out=res();await makeStaffAdminHandler({},services)(req('attendees'),out);assert.equal(out.body.records[0].medicalDetails,'Previous medical information');
 });
+
+test('newly visible questions appear for existing bookings even when no answer was collected',async()=>{
+ const u=staffAccess({...account,staff_profile:profile('check_in')}),out=res();
+ const row={id,event_id:id,event:{details:{bookingFields:[{id:'phone',label:'Emergency telephone',type:'phone',checkInVisible:true},{id:'hidden',label:'Private',type:'short_text'}]}},responses:[]};
+ await makeStaffAdminHandler({}, {currentUser:async()=>u,authorizeAdmin:async(r,e,p)=>hasPermission(u,p),all:async(e,path)=>path.startsWith('dynamo_event_bookings?')?[row]:[]})(req('attendees'),out);
+ assert.equal(out.code,200);assert.deepEqual(out.body.records[0].responses,[{id:'phone',label:'Emergency telephone',type:'phone',value:null}]);
+});
+test('legacy answers only match a visible question with the exact type and wording on an imported booking',async()=>{
+ const u=staffAccess({...account,staff_profile:profile('check_in')}),field={id:'new-parking-id',label:'Parking signs acknowledged',type:'acknowledgement',checkInVisible:true};
+ const row={id,event_id:id,selection:{legacyImport:true},event:{details:{bookingFields:[field]}},responses:[{id:'legacy-parking',label:field.label,type:field.type,value:true}]};
+ const services={currentUser:async()=>u,authorizeAdmin:async(r,e,p)=>hasPermission(u,p),all:async(e,path)=>path.startsWith('dynamo_event_bookings?')?[row]:[]};
+ let out=res();await makeStaffAdminHandler({},services)(req('attendees'),out);assert.equal(out.body.records[0].responses[0].value,true);
+ field.checkInVisible=false;out=res();await makeStaffAdminHandler({},services)(req('attendees'),out);assert.deepEqual(out.body.records[0].responses,[]);
+ field.checkInVisible=true;row.selection.legacyImport=false;out=res();await makeStaffAdminHandler({},services)(req('attendees'),out);assert.equal(out.body.records[0].responses[0].value,null);
+});

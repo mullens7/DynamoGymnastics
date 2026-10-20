@@ -3,8 +3,11 @@ function checkInResponses(row){
  const definitions=Array.isArray(row.event?.details?.bookingFields)?row.event.details.bookingFields:[];
  const answers=Array.isArray(row.responses)?row.responses:[];
  return definitions.filter(f=>f.checkInVisible===true).flatMap(f=>{
-  const answer=answers.find(a=>a.id===f.id&&a.type===f.type);
-  if(!answer)return [];
+  let answer=answers.find(a=>a.id===f.id);
+  if(answer&&answer.type!==f.type)return [];
+  // Imported acknowledgements have legacy IDs, but must match the exact question and type.
+  if(!answer&&row.selection?.legacyImport){const legacy=answers.filter(a=>String(a.id).startsWith('legacy-')&&a.label===f.label&&a.type===f.type);if(legacy.length===1)answer=legacy[0];}
+  if(!answer)return [{id:f.id,label:f.label,type:f.type,value:null}];
   const value=answer.value;
   if(!(typeof value==='string'||typeof value==='boolean'||Array.isArray(value)&&value.every(v=>typeof v==='string')))return [];
   return [{id:f.id,label:f.label,type:f.type,value}];
