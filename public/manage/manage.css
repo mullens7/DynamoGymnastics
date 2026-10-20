@@ -66,3 +66,5 @@ aside>.brand{margin-bottom:0;padding-bottom:0}aside>.brand img{display:block}asi
  .admin-event-group td{min-width:0}
  .dialog-actions button{min-width:0;min-height:44px}
 }
+
+.checkin-details{margin:12px 0;max-width:620px;overflow-wrap:anywhere}.checkin-details summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:#1656a4;font-weight:600}.checkin-details dl{margin:0;padding:12px;background:#f3f6fa;border-radius:8px}.checkin-details dt{font-weight:600;margin-top:12px}.checkin-details dt:first-child{margin-top:0}.checkin-details dd{margin:5px 0 0;white-space:pre-wrap}.field-visibility strong{color:#1656a4}
