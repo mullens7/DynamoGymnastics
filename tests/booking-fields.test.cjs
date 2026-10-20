@@ -16,3 +16,10 @@ test('check-in renders approved answers and medical information as escaped text'
  assert.doesNotMatch(html,/<script>|<img /);assert.match(html,/&lt;script&gt;/);assert.match(html,/S, M/);assert.match(html,/Confirmed/);
  assert.match(ctx.checkInBookingDetails({responses:[]}),/Not recorded/);
 });
+
+test('check-in distinguishes an uncollected question from an unanswered optional question',()=>{
+ const ctx={esc:x=>String(x??'')};vm.createContext(ctx);vm.runInContext(fs.readFileSync('public/manage/staff.js','utf8'),ctx);
+ const html=ctx.checkInBookingDetails({responses:[{label:'Emergency telephone',value:null,notCollected:true},{label:'Optional notes',value:null}]});
+ assert.match(html,/Emergency telephone<\/dt><dd>Not collected when this booking was made/);
+ assert.match(html,/Optional notes<\/dt><dd>Not provided/);
+});

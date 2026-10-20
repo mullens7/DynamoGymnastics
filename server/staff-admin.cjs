@@ -7,9 +7,9 @@ function checkInResponses(row){
   if(answer&&answer.type!==f.type)return [];
   // Imported acknowledgements have legacy IDs, but must match the exact question and type.
   if(!answer&&row.selection?.legacyImport){const legacy=answers.filter(a=>String(a.id).startsWith('legacy-')&&a.label===f.label&&a.type===f.type);if(legacy.length===1)answer=legacy[0];}
-  if(!answer)return [{id:f.id,label:f.label,type:f.type,value:null}];
+  if(!answer)return [{id:f.id,label:f.label,type:f.type,value:null,notCollected:true}];
   const value=answer.value;
-  if(!(typeof value==='string'||typeof value==='boolean'||Array.isArray(value)&&value.every(v=>typeof v==='string')))return [];
+  if(!(value===null||typeof value==='string'||typeof value==='boolean'||Array.isArray(value)&&value.every(v=>typeof v==='string')))return [];
   return [{id:f.id,label:f.label,type:f.type,value}];
  });
 }

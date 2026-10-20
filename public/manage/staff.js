@@ -1,6 +1,6 @@
 function checkInBookingDetails(attendee){
  const value=v=>v===true?'Confirmed':v===false?'Not confirmed':Array.isArray(v)?v.join(', '):v||'Not provided';
- return '<details class="checkin-details" data-booking-details="'+esc(attendee.id||'')+'"><summary>Medical & booking details</summary><dl><dt>Medical conditions / allergies</dt><dd>'+esc(attendee.medicalDetails??'Not recorded')+'</dd>'+(attendee.responses||[]).map(r=>'<dt>'+esc(r.label)+'</dt><dd>'+esc(value(r.value))+'</dd>').join('')+'</dl></details>';
+ return '<details class="checkin-details" data-booking-details="'+esc(attendee.id||'')+'"><summary>Medical & booking details</summary><dl><dt>Medical conditions / allergies</dt><dd>'+esc(attendee.medicalDetails??'Not recorded')+'</dd>'+(attendee.responses||[]).map(r=>'<dt>'+esc(r.label)+'</dt><dd>'+esc(r.notCollected?'Not collected when this booking was made':value(r.value))+'</dd>').join('')+'</dl></details>';
 }
 let attendeeEvent='',attendeeParent='',attendeeQuery='';
 function startingSoonSession(session,now=new Date()){

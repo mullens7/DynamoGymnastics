@@ -32,7 +32,7 @@ test('newly visible questions appear for existing bookings even when no answer w
  const u=staffAccess({...account,staff_profile:profile('check_in')}),out=res();
  const row={id,event_id:id,event:{details:{bookingFields:[{id:'phone',label:'Emergency telephone',type:'phone',checkInVisible:true},{id:'hidden',label:'Private',type:'short_text'}]}},responses:[]};
  await makeStaffAdminHandler({}, {currentUser:async()=>u,authorizeAdmin:async(r,e,p)=>hasPermission(u,p),all:async(e,path)=>path.startsWith('dynamo_event_bookings?')?[row]:[]})(req('attendees'),out);
- assert.equal(out.code,200);assert.deepEqual(out.body.records[0].responses,[{id:'phone',label:'Emergency telephone',type:'phone',value:null}]);
+ assert.equal(out.code,200);assert.deepEqual(out.body.records[0].responses,[{id:'phone',label:'Emergency telephone',type:'phone',value:null,notCollected:true}]);
 });
 test('legacy answers only match a visible question with the exact type and wording on an imported booking',async()=>{
  const u=staffAccess({...account,staff_profile:profile('check_in')}),field={id:'new-parking-id',label:'Parking signs acknowledged',type:'acknowledgement',checkInVisible:true};
