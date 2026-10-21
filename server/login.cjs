@@ -10,15 +10,18 @@ function digest(env,value){if(!env.SYNC_TEST_KEY||env.SYNC_TEST_KEY.length<32)th
 function makeLoginHandler(env=process.env,services={rpc,store,sendEmail,currentUser,signOut}){return async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  try{
+ if(req.query?.action==='password-settings'||['password','set-password'].includes(req.body?.action))return require('./developer-password.cjs').makeDeveloperPasswordHandler(env)(req,res);
  if(req.method==='GET'){const user=await services.currentUser(req,env);return res.status(user?200:401).json(user?{user}:{message:'Please log in.'});}
  if(!['POST','DELETE'].includes(req.method))return res.status(405).json({message:'Method not allowed.'});
  if(!sameOrigin(req))return res.status(403).json({message:'Open the Dynamo website to log in.'});
  if(req.method==='DELETE'){await services.signOut(req,env);res.setHeader('Set-Cookie',cookie('',0,req));return res.status(200).json({ok:true});}
  if(req.body?.action==='request'){
   const address=String(req.body.email||'').trim().toLowerCase();if(!email(address))return res.status(400).json({message:'Enter a valid email address.'});
+  if(address==='freddie@mullens.com'&&await require('./developer-password.cjs').passwordConfigured(env,services))return res.status(200).json({loginMethod:'password'});
   const id=randomUUID(),code=String(randomInt(0,10000)).padStart(4,'0');
   const ip=String(req.headers['x-vercel-forwarded-for']||req.headers['x-real-ip']||req.socket?.remoteAddress||'unknown').split(',')[0].trim();
   const result=await services.rpc(env,'request_dynamo_code',{p_id:id,p_email:address,p_ip:digest(env,'ip:'+ip),p_hash:digest(env,id+':'+code)});
+  if(!result.ok&&result.error==='PASSWORD_REQUIRED')return res.status(200).json({loginMethod:'password'});
   if(!result.ok)return res.status(429).json({message:'Please wait before requesting another code. You can request up to five codes per hour.'});
   try{await services.sendEmail({to:address,...verificationEmail(code)},env);}
   catch{await services.store(env,'dynamo_login_codes?id=eq.'+id,{method:'PATCH',body:JSON.stringify({consumed:true})});throw Error('EMAIL_DELIVERY_FAILED');}
@@ -27,7 +30,7 @@ function makeLoginHandler(env=process.env,services={rpc,store,sendEmail,currentU
  if(req.body?.action==='verify'){
   const {challengeId,code}=req.body;if(!uuid(challengeId)||!/^\d{4}$/.test(code||''))return res.status(400).json({message:'Enter the four-digit code.'});
   const token=randomBytes(32).toString('hex');const result=await services.rpc(env,'verify_dynamo_code',{p_id:challengeId,p_hash:digest(env,challengeId+':'+code),p_session_hash:hash(token)});
-  if(!result.ok)return res.status(400).json({message:result.error==='OTP_INCORRECT'?'That code is incorrect. Please try again.':'That code has expired or has already been used. Request a new code.'});
+  if(!result.ok)return res.status(400).json({message:result.error==='PASSWORD_REQUIRED'?'Use your developer password to log in.':result.error==='OTP_INCORRECT'?'That code is incorrect. Please try again.':'That code has expired or has already been used. Request a new code.'});
   res.setHeader('Set-Cookie',cookie(token,43200,req));return res.status(200).json({ok:true});
  }
  return res.status(400).json({message:'Choose a login action.'});

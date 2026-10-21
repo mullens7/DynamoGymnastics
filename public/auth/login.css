@@ -4,3 +4,5 @@
 .otp-digit:focus{outline:2px solid #1656a4;outline-offset:2px}
 #resend:disabled{cursor:default;opacity:.65}
 @media(max-width:360px){.otp-boxes{gap:8px}.otp-boxes .otp-digit{height:56px;font-size:26px}}
+
+#status:not(:empty){background:#fff1f2;color:#a62032;border:1px solid #efb0b6;padding:12px;border-radius:8px}#password-form input{width:100%;min-width:0}#password-form input[readonly]{background:#f3f6fa;color:#526178}
