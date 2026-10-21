@@ -39,3 +39,13 @@ test('manual sync streams source, validation detail and masked screenshot withou
  await makeHandler(env,undefined,operations)({method:'POST',headers:{authorization:'Bearer '+env.SYNC_TEST_KEY},body:{mode:'sync',pin:'2468'}},response);
  const failure=response.lines.at(-1);assert.equal(failure.organisation,'Gymtots R OK');assert.equal(failure.validation.row,33);assert.equal(failure.stage,'validation');assert.equal(failure.error,'INVALID_ROSTER');assert.ok(failure.diagnostic.image);assert.equal(JSON.stringify(response.lines).includes('token=secret'),false);assert.equal(response.lines.some(x=>x.type==='complete'),false);
 });
+
+test('manual sync exposes only allowlisted failed navigation steps',async()=>{
+ for(const check of ['Contacts page navigation','private email token=secret']){
+  const response=res();const operations={confirmPin:async()=>{},performSync:async()=>{throw Object.assign(Error('private upstream details'),{code:'STEP_TIMEOUT',stage:'contacts',check});}};
+  await makeHandler(env,undefined,operations)({method:'POST',headers:{authorization:'Bearer '+env.SYNC_TEST_KEY},body:{mode:'sync',pin:'2468'}},response);
+  const failure=response.lines.at(-1);assert.equal(failure.check,check==='Contacts page navigation'?check:undefined);
+  assert.equal(failure.message.includes('Contacts page navigation'),check==='Contacts page navigation');
+  assert.equal(JSON.stringify(response.lines).includes('token=secret'),false);
+ }
+});

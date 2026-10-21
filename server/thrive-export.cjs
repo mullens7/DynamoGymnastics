@@ -84,11 +84,12 @@ async function exportContacts(env,{chromium,includeWorkbook=false,captureDiagnos
   // A chooser card alone does not prove an organisation is selected.
   await organisation.first().waitFor({state:'visible'});
   stage='contacts';onProgress({percent:50,label:'Opening Contacts'});console.info('Thrive export stage: contacts');
-  check='expand Contact management';console.info('Thrive export check:',check);
-  await navigation.click();
-  check='open Contacts menu';console.info('Thrive export check:',check);
-  await page.locator('#nav-contacts').getByText('Contacts',{exact:true}).click();
+  // The organisation has been selected and verified above. Open its known
+  // Contacts route directly: the expanding menu wrapper can have an off-screen
+  // centre and is not a reliable click target. This retains Thrive4's normal
+  // authenticated routing and permissions, without touching contact data.
   check='Contacts page navigation';console.info('Thrive export check:',check);
+  await page.goto('https://club.thrive4.com/#/app/business/crm',{waitUntil:'domcontentloaded'});
   await page.waitForURL(url=>url.hash.split('?')[0].replace(/\/$/,'')==='#/app/business/crm');
   check='Contacts Export button';console.info('Thrive export check:',check);
   await page.getByText('Export',{exact:true}).waitFor({state:'visible',timeout:30000});
@@ -120,7 +121,7 @@ async function exportContacts(env,{chromium,includeWorkbook=false,captureDiagnos
  try{
   return await Promise.race([task,new Promise((_,reject)=>{deadline=setTimeout(()=>reject(new SyncError('SESSION_TIMEOUT',stage)),110000)})]);
  }catch(error){
-  const reason=stage==='download'&&check==='download Excel export'?actionabilityReason(error):'Automation stopped at '+check+'.';
+  const reason=(stage==='download'&&check==='download Excel export')||stage==='contacts'?'Automation stopped at '+check+': '+actionabilityReason(error)+'.':'Automation stopped at '+check+'.';
   const diagnostic=await captureDiagnostic(page,reason);
   if(stage==='contacts'&&page){
    // Only fixed route labels and counts: no page text, contact names or credentials.
