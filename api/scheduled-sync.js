@@ -7,6 +7,8 @@ module.exports=async(req,res)=>{
  if(typeof key!=='string'||key.length<32||!equal(req.headers.authorization,'Bearer '+key))return res.status(401).json({ok:false});
  // A harmless probe verifies scheduler credentials and deployment without running a sync.
  if(req.body?.probe===true)return res.status(200).json({ok:true,configured:true});
+ // Fixed, scheduler-authenticated webhook maintenance; never runs reconciliation or email delivery.
+ if(req.body?.repairStripeWebhook===true){try{return res.status(200).json(await require('../server/stripe-webhook-maintenance.cjs').repair(process.env));}catch{return res.status(502).json({ok:false,error:'WEBHOOK_MAINTENANCE_FAILED'});}}
  // Scheduler-authenticated, read-only export diagnosis. No payment or email work.
  if(req.body?.inspectMembers===true){try{return res.status(200).json(await require('../server/member-sync.cjs').syncMembers(process.env,{dryRun:true}));}catch(error){return res.status(502).json({ok:false,error:error.code||'AUTOMATION_FAILED',organisation:error.organisation,validation:error.validation});}}
  // Private recovery uses the same lock and importer, without unrelated notification work.
