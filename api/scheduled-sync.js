@@ -7,6 +7,8 @@ module.exports=async(req,res)=>{
  if(typeof key!=='string'||key.length<32||!equal(req.headers.authorization,'Bearer '+key))return res.status(401).json({ok:false});
  // A harmless probe verifies scheduler credentials and deployment without running a sync.
  if(req.body?.probe===true)return res.status(200).json({ok:true,configured:true});
+ // Scheduler-authenticated, read-only export diagnosis. No payment or email work.
+ if(req.body?.inspectMembers===true){try{return res.status(200).json(await require('../server/member-sync.cjs').syncMembers(process.env,{dryRun:true}));}catch(error){return res.status(502).json({ok:false,error:error.code||'AUTOMATION_FAILED',organisation:error.organisation,validation:error.validation});}}
  try{await require('../server/stripe-payments.cjs').reconcile(process.env);}catch{console.warn('Stripe reconciliation unavailable');}
  if(req.body?.paymentReconcile===true)return res.status(200).json({ok:true});
  const slot=scheduleSlot();if(!slot)return res.status(200).json({ok:true,skipped:true});

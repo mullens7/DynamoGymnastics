@@ -13,7 +13,7 @@ function snapshotHash(owners){
  const canonical=owners.map(owner=>({...owner,gymnasts:owner.gymnasts.map(g=>({...g,groups:[...g.groups].sort()})).sort((a,b)=>a.sourceId.localeCompare(b.sourceId))})).sort((a,b)=>a.email.localeCompare(b.email));
  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }
-async function syncMembers(env,{onProgress=()=>{}}={},services={exportContacts,readWorkbook,prepareRoster,fetch:(...args)=>fetch(...args)}){
+async function syncMembers(env,{onProgress=()=>{},dryRun=false}={},services={exportContacts,readWorkbook,prepareRoster,fetch:(...args)=>fetch(...args)}){
  const config=settings(env),startedAt=new Date().toISOString();
  const sources=sourceConfigurations(env).map(source=>({...source,config:settings(source.env)}));
  const reports=[];
@@ -53,10 +53,11 @@ async function syncMembers(env,{onProgress=()=>{}}={},services={exportContacts,r
  const owners=mergeRosters(sources);
  onProgress({percent:85,label:'Combining accounts and checking both exports'});
  onProgress({percent:90,label:'Saving memberships and retaining account history'});
- const response=await services.fetch(config.url+'/rest/v1/rpc/apply_dynamo_rosters',{method:'POST',headers:{...config.headers,'Content-Type':'application/json'},redirect:'error',body:JSON.stringify({p_hash:snapshotHash(owners),p_started_at:startedAt,p_rows:owners,p_sources:sources.map(source=>({...sourceSummary(source),hash:snapshotHash(source.owners)}))}),signal:AbortSignal.timeout(20000)});
+ const response=await services.fetch(config.url+'/rest/v1/rpc/'+(dryRun?'preview_dynamo_rosters':'apply_dynamo_rosters'),{method:'POST',headers:{...config.headers,'Content-Type':'application/json'},redirect:'error',body:JSON.stringify({p_hash:snapshotHash(owners),p_started_at:startedAt,p_rows:owners,p_sources:sources.map(source=>({...sourceSummary(source),hash:snapshotHash(source.owners)}))}),signal:AbortSignal.timeout(20000)});
  if(!response.ok){let code;try{code=(await response.json()).message;}catch{}
   throw new RosterError(['SNAPSHOT_REVIEW_REQUIRED','STALE_SNAPSHOT','IDENTITY_REVIEW_REQUIRED','ROSTER_SOURCE_MISSING'].includes(code)?code:'SYNC_STORAGE_FAILED');}
  const result=await response.json();
+ if(dryRun)return result;
  return {ok:true,membershipUpdated:true,accounts:result.accounts,members:result.members,staff:result.staff,unchanged:result.unchanged===true,organisations:sources.map(s=>({name:s.name,...sourceSummary(s)})),emailsSent:0,unmappedRows:reports.reduce((n,r)=>n+(r.unmappedRows||0),0),unmappedClasses:reports.flatMap(r=>(r.unmappedClasses||[]).map(c=>({...c,label:r.name+': '+c.label}))),message:'Members synced. Accounts and history retained. No emails sent.'};
 }
 module.exports={syncMembers,settings,snapshotHash};
