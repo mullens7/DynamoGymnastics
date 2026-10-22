@@ -5,3 +5,5 @@ document.getElementById('contact-form').addEventListener('submit',async event=>{
  catch(e){status.textContent=e.message||'Your message could not be sent. Please email or call us.';}
  finally{button.disabled=false;button.textContent='Send message';}
 });
+const contactChoice=document.getElementById('show-contact');
+contactChoice?.addEventListener('click',()=>{const section=document.getElementById('contact-details');section.hidden=false;contactChoice.setAttribute('aria-expanded','true');section.scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('first-name').focus({preventScroll:true});});
