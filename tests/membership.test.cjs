@@ -20,6 +20,7 @@ test('owner grouping, staff parent, staff only, inactive and missing IDs',()=>{
 });
 test('pricing and per-gymnast restrictions, no sibling privilege',()=>{
  const a=m.accounts([{email:'a',gymnastId:'1',timeClass:'Gymini',active:true},{email:'a',gymnastId:'2',timeClass:'MA Senior',active:true}])[0];
+ a.gymnasts.forEach(g=>Object.assign(g,{bg_number:'BG-TEST',bg_expiry_date:'2099-09-01'}));
  const e={audience:'groups',allowedGroups:['mens_squad'],memberPriceCents:1000,nonMemberPriceCents:1500};
  assert.equal(m.quote(e,a,'1').eligible,false);assert.deepEqual(m.quote(e,a,'2'),{eligible:true,priceCents:1000});assert.equal(m.eligible(e,null,'2'),false);
  assert.deepEqual(m.quote({...e,audience:'everyone'},null),{eligible:true,priceCents:1500});
@@ -40,7 +41,7 @@ test('Gymtots is an active member group and available for event restrictions',()
  for(const label of ['Saturday 9.45-10.25, Gymtots','Saturday 9.45-10.20, gymtots'])assert.deepEqual(m.classify(label),{groups:['gymtots'],staff:false,review:[]});
  assert.equal(m.groups.gymtots,'Gymtots');
  const account=m.accounts([{email:'parent@example.invalid',gymnastId:'gymtots-child',timeClass:'Gymtots',active:true}])[0];
- assert.equal(account.member,true);assert.equal(m.eligible({audience:'groups',allowedGroups:['gymtots']},account,'gymtots-child'),true);
+ account.gymnasts.forEach(g=>Object.assign(g,{bg_number:'BG-TEST',bg_expiry_date:'2099-09-01'}));assert.equal(account.member,true);assert.equal(m.eligible({audience:'groups',allowedGroups:['gymtots']},account,'gymtots-child'),true);
 });
 test('Gymtots-only age rules classify every supplied class label with correct precedence',()=>{
  const cases=[
@@ -61,12 +62,25 @@ test('Gymtots-only age rules classify every supplied class label with correct pr
 test('new Gymtots groups are selectable and support eligibility without altering Dynamo classification',()=>{
  const ids=['under_2_years','two_years','three_to_four_years','under_4_years'];for(const id of ids)assert.ok(Object.keys(m.groups).includes(id));assert.equal(Object.keys(m.groups).includes('gymtots'),false);
  assert.deepEqual(m.classify('Monday Under 2 Years').groups,[]);assert.deepEqual(m.classify('Gymtots').groups,['gymtots']);assert.deepEqual(m.classify('Boys Advanced Recreational').groups,['advanced']);
- for(const id of ids){const a={member:true,gymnasts:[{id:'child',active:true,groups:[id]}]};assert.equal(m.eligible({audience:'groups',allowedGroups:[id]},a,'child'),true);assert.equal(m.eligible({audience:'groups',allowedGroups:['gymini']},a,'child'),false);}
+ for(const id of ids){const a={member:true,gymnasts:[{id:'child',active:true,bg_number:'BG-TEST',bg_expiry_date:'2099-09-01',groups:[id]}]};assert.equal(m.eligible({audience:'groups',allowedGroups:[id]},a,'child'),true);assert.equal(m.eligible({audience:'groups',allowedGroups:['gymini']},a,'child'),false);}
  assert.deepEqual(m.classifyGymtots('Under 2 Years, Junior Coach'),{groups:['under_2_years'],staff:true,review:[]});assert.deepEqual(m.classifyGymtots('Senior Coach'),{groups:[],staff:true,review:[]});assert.equal(m.classifyGymtots('Gymtots').groups.length,0);assert.equal(m.classifyGymtots('Waiting list').review.length,1);
 });
 test('discounts belong only to each active member gymnast in a mixed family',()=>{
- const a={member:true,gymnasts:[{id:'member',active:true,groups:['gymini']},{id:'sibling',active:false,groups:[]},{id:'former',active:false,groups:['recreational']},{id:'unclassified',active:true,groups:[]}]};const e={audience:'everyone',memberPriceCents:750,nonMemberPriceCents:1000};
+ const a={member:true,gymnasts:[{id:'member',active:true,bg_number:'BG-TEST',bg_expiry_date:'2099-09-01',groups:['gymini']},{id:'sibling',active:false,groups:[]},{id:'former',active:false,groups:['recreational']},{id:'unclassified',active:true,bg_number:'BG-TEST',bg_expiry_date:'2099-09-01',groups:[]}]};const e={audience:'everyone',memberPriceCents:750,nonMemberPriceCents:1000};
  assert.equal(m.quote(e,a,'member').priceCents,750);
  for(const id of ['sibling','former','unclassified','unknown'])assert.equal(m.quote(e,a,id).priceCents,1000);
  assert.equal(m.quote({...e,audience:'members'},a,'sibling').eligible,false);
+});
+test('member benefits require current BG insurance except the three explicit exempt groups',()=>{
+ const today='2027-09-01',g={id:'child',active:true,groups:['gymini'],bg_number:'BG123',bg_expiry_date:today};
+ assert.equal(m.isMember(g,today),true);assert.equal(m.isMember({...g,bg_expiry_date:'2027-08-31'},today),false);
+ for(const bad of [{bg_number:''},{bg_number:'  '},{bg_expiry_date:null},{bg_expiry_date:'2027-02-30'},{active:false}])assert.equal(m.isMember({...g,...bad},today),false);
+ for(const group of ['under_2_years','two_years','under_4_years'])assert.equal(m.isMember({...g,groups:[group],bg_number:'',bg_expiry_date:null},today),true);
+ assert.equal(m.isMember({...g,groups:['three_to_four_years'],bg_number:'',bg_expiry_date:null},today),false);
+ assert.equal(m.isMember({...g,groups:['under_2_years','gymini'],bg_number:'',bg_expiry_date:null},today),false);
+ const paused={...g,bg_expiry_date:'2000-01-01'},a={gymnasts:[paused]};
+ assert.deepEqual(m.quote({audience:'everyone',memberPriceCents:500,nonMemberPriceCents:1000},a,'child'),{eligible:true,priceCents:1000});
+ assert.equal(m.eligible({audience:'members'},a,'child'),false);assert.equal(m.eligible({audience:'groups',allowedGroups:['gymini']},a,'child'),false);
+ assert.equal(m.benefitsPaused(paused),true);assert.equal(m.benefitsPaused({...paused,active:false}),false);
+ assert.equal(m.isMember({...paused,bg_expiry_date:'2099-09-01'}),true);
 });

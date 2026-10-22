@@ -65,18 +65,29 @@
     const profile=account?.gymnasts?.find(g=>g.id===gymnastId);if(event.minAge!=null||event.maxAge!=null){const dob=profile?.date_of_birth;if(!/^\d{4}-\d{2}-\d{2}$/.test(dob||'')||!event.date)return false;const age=Number(event.date.slice(0,4))-Number(dob.slice(0,4))-(event.date.slice(5)<dob.slice(5)?1:0);if(age<0||(event.minAge!=null&&age<event.minAge)||(event.maxAge!=null&&age>event.maxAge))return false;}
     if(event.audience==='everyone')return true;
     const g=account?.gymnasts?.find(g=>g.id===gymnastId&&g.active);
-    if(!g)return false;
+    if(!isMember(g))return false;
     if(event.audience==='members')return g.groups.length>0;
     return event.audience==='groups'&&g.groups.some(id=>(event.allowedGroups||[]).includes(id));
   }
-  function isMember(gymnast){return gymnast?.active===true&&Array.isArray(gymnast.groups)&&gymnast.groups.length>0;}
-  function requiresBgExpiry(g){return isMember(g)&&g.groups.some(id=>!['under_2_years','two_years','under_4_years'].includes(id));}
+  function activeMember(gymnast){return gymnast?.active===true&&Array.isArray(gymnast.groups)&&gymnast.groups.length>0;}
+  function requiresBgExpiry(g){return activeMember(g)&&g.groups.some(id=>!['under_2_years','two_years','under_4_years'].includes(id));}
+  const benefitsPausedMessage='Membership benefits paused\nYour Dynamo membership benefits are currently paused because your British Gymnastics membership has expired or is not recorded.\nTo receive member prices and benefits, you must have both an active Dynamo membership and a valid British Gymnastics membership.\nOnce your British Gymnastics membership is renewed and verified, your member benefits will automatically be restored.';
+  function isMember(g,today){
+    if(!activeMember(g))return false;
+    if(!requiresBgExpiry(g))return true;
+    const expiry=g.bg_expiry_date||g.bgExpiryDate;
+    if(!String(g.bg_number||g.bgNumber||'').trim()||!/^\d{4}-\d{2}-\d{2}$/.test(expiry||''))return false;
+    const parsed=new Date(expiry+'T00:00:00Z');if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==expiry)return false;
+    today ||= new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    return expiry>=today;
+  }
+  function benefitsPaused(g,today){return activeMember(g)&&!isMember(g,today);}
   function quote(event,account,gymnastId){
     if(!eligible(event,account,gymnastId))return {eligible:false,priceCents:null};
     // Discounts belong to the selected active gymnast, not their siblings.
     return {eligible:true,priceCents:isMember(account?.gymnasts?.find(g=>g.id===gymnastId))?event.memberPriceCents:event.nonMemberPriceCents};
   }
-  const api=Object.freeze({groups,classify,classifyGymtots,accounts,cents,eligible,quote,isMember,requiresBgExpiry});
+  const api=Object.freeze({groups,classify,classifyGymtots,accounts,cents,eligible,quote,isMember,requiresBgExpiry,benefitsPaused,benefitsPausedMessage});
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else root.DynamoMembership=api;
 })(globalThis);
