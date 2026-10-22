@@ -12,8 +12,15 @@ async function settleSession(env,order,session,services={rpc}){
  const paid=session.payment_status==='paid'&&session.status==='complete';
  if(!paid&&session.status!=='expired')return {state:order.state};
  const pi=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id;
+ let paidAt;
+ if(paid){
+  const intent=await (services.stripe||stripe)(env).paymentIntents.retrieve(pi,{expand:['latest_charge']},options(env));
+  const charge=intent.latest_charge;
+  if(intent.id!==pi||intent.status!=='succeeded'||intent.amount_received!==order.card_pence||intent.currency!=='gbp'||!charge||typeof charge!=='object'||!charge.paid||!charge.captured||charge.payment_intent!==pi||!Number.isSafeInteger(charge.created))throw Object.assign(Error('Payment verification failed.'),{code:'PAYMENT_MISMATCH'});
+  paidAt=new Date(charge.created*1000).toISOString();
+ }
  const result=await services.rpc(env,'settle_dynamo_card_checkout',{p_order:order.id,p_session:session.id,p_payment:pi||null,p_amount:session.amount_total,p_paid:paid});
- if(paid)await deliver(env,order,services);return result;
+ if(paid){await services.rpc(env,'record_dynamo_payment_date',{p_order:order.id,p_payment:pi,p_paid_at:paidAt});await deliver(env,order,services);}return result;
 }
 async function createCheckout(env,req,user,kind,body,services={rpc,all,store,stripe}){
  const client=services.stripe(env),base=origin(req);

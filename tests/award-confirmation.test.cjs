@@ -53,9 +53,9 @@ test('both card settlement and wallet-only awards invoke award confirmation afte
  }};
  vm.runInNewContext(fs.readFileSync('server/stripe-payments.cjs','utf8'),ctx);
  const api=ctx.module.exports,env={STRIPE_SECRET_KEY:'sk_test_fixture',STRIPE_CONNECTED_ACCOUNT_ID:'acct_fixture'},order={id,account_id:account,kind:'awards',connected_account:'acct_fixture',session_id:'cs_fixture',card_pence:500,result:{}},calls=[];
- const services={rpc:async()=>{calls.push('persisted');return {state:'paid'};},deliverAwardConfirmation:async(e,i,a)=>{assert.equal(i,id);assert.equal(a,account);calls.push('award-email');}};
+ const services={stripe:()=>({paymentIntents:{retrieve:async()=>({id:'pi_fixture',status:'succeeded',amount_received:500,currency:'gbp',latest_charge:{paid:true,captured:true,payment_intent:'pi_fixture',created:Math.floor(Date.now()/1000)}})}}),rpc:async(e,name)=>{calls.push(name==='record_dynamo_payment_date'?'date-recorded':'persisted');return {state:'paid'};},deliverAwardConfirmation:async(e,i,a)=>{assert.equal(i,id);assert.equal(a,account);calls.push('award-email');}};
  await api.settleSession(env,order,{id:'cs_fixture',metadata:{site:'dynamo-gymnastics',orderId:id},client_reference_id:id,currency:'gbp',amount_total:500,livemode:false,payment_status:'paid',status:'complete',payment_intent:'pi_fixture'},services);
- assert.deepEqual(calls,['persisted','award-email']);calls.length=0;
+ assert.deepEqual(calls,['persisted','date-recorded','award-email']);calls.length=0;
  await api.settleSession(env,order,{id:'cs_fixture',metadata:{site:'dynamo-gymnastics',orderId:id},client_reference_id:id,currency:'gbp',amount_total:500,livemode:false,payment_status:'unpaid',status:'expired'},services);
  assert.deepEqual(calls,['persisted']);calls.length=0;
  await api.createCheckout(env,{headers:{host:'dynamo-gymnastics.vercel.app'}},{id:account},'awards',{},{

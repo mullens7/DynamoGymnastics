@@ -22,7 +22,7 @@ create function public.dispatch_dynamo_payment_reconciliation() returns bigint l
 declare token text;begin
  if not exists(select 1 from public.dynamo_card_checkouts where state in ('creating','open')) and not exists(select 1 from public.dynamo_card_refunds where state in ('creating','pending')) and not exists(select 1 from public.dynamo_stripe_events where status='received') then return null;end if;
  select decrypted_secret into token from vault.decrypted_secrets where name='dynamo_sync_schedule_secret';if token is null then raise exception 'SCHEDULE_NOT_CONFIGURED';end if;
- return net.http_post(url:='https://dynamo-gymnastics.vercel.app/api/scheduled-sync/',headers:=jsonb_build_object('Content-Type','application/json','Authorization','Bearer '||token),body:='{"paymentReconcile":true}'::jsonb,timeout_milliseconds:=150000);
+ return net.http_post(url:='https://dynamogymnastics.co.uk/api/scheduled-sync/',headers:=jsonb_build_object('Content-Type','application/json','Authorization','Bearer '||token),body:='{"paymentReconcile":true}'::jsonb,timeout_milliseconds:=150000);
 end $$;
 revoke all on function public.dispatch_dynamo_payment_reconciliation() from public,anon,authenticated;
 select cron.schedule('dynamo-stripe-reconciliation','*/5 * * * *','select public.dispatch_dynamo_payment_reconciliation();');

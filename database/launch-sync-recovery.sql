@@ -32,7 +32,7 @@ BEGIN
  IF EXISTS(SELECT 1 FROM public.dynamo_sync_jobs WHERE slot=slot_key AND (status IN ('complete','running') OR attempts>=3)) THEN RETURN NULL;END IF;
  SELECT decrypted_secret INTO token FROM vault.decrypted_secrets WHERE name='dynamo_sync_schedule_secret';
  IF token IS NULL THEN RAISE EXCEPTION 'SCHEDULE_NOT_CONFIGURED';END IF;
- RETURN net.http_post(url:='https://dynamo-gymnastics.vercel.app/api/scheduled-sync/',headers:=jsonb_build_object('Content-Type','application/json','Authorization','Bearer '||token),body:='{}'::jsonb,timeout_milliseconds:=150000);
+ RETURN net.http_post(url:='https://dynamogymnastics.co.uk/api/scheduled-sync/',headers:=jsonb_build_object('Content-Type','application/json','Authorization','Bearer '||token),body:='{}'::jsonb,timeout_milliseconds:=150000);
 END $$;
 REVOKE ALL ON FUNCTION public.dispatch_dynamo_scheduled_sync() FROM PUBLIC,anon,authenticated,service_role;
 SELECT cron.alter_job(job_id:=(SELECT jobid FROM cron.job WHERE jobname='dynamo-members-uk-midnight-noon'),schedule:='*/5 * * * *');

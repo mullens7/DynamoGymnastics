@@ -51,7 +51,7 @@ begin
  select decrypted_secret into token from vault.decrypted_secrets where name='dynamo_sync_schedule_secret';
  if token is null then raise exception 'SCHEDULE_NOT_CONFIGURED'; end if;
  return net.http_post(
-  url:='https://dynamo-gymnastics.vercel.app/api/scheduled-sync/',
+  url:='https://dynamogymnastics.co.uk/api/scheduled-sync/',
   headers:=jsonb_build_object('Content-Type','application/json','Authorization','Bearer '||token),
   body:='{}'::jsonb,timeout_milliseconds:=150000
  );
