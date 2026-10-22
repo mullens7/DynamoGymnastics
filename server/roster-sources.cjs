@@ -47,6 +47,7 @@ function mergeRosters(sources,{skipInvalid=false,report={}}={}){
    const active=[previous,child].filter(g=>g.active),used=active.length?active:[previous,child];
    previous.groups=[...new Set(used.flatMap(g=>g.groups))];
    previous.timeClass=[...new Set(used.map(g=>g.timeClass).filter(Boolean))].join(' | ');
+   if(child.bgExpiryDate&&(!previous.bgExpiryDate||child.bgExpiryDate>previous.bgExpiryDate))previous.bgExpiryDate=child.bgExpiryDate;
    previous.active ||= child.active;previous.bgNumber ||= child.bgNumber;
   }
  }

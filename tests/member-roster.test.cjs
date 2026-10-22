@@ -98,3 +98,22 @@ test('partial import skips bad identities and duplicate profiles while retaining
  assert.equal(owners.find(x=>x.email==='taster@example.invalid').member,false);
  assert.equal(owners.find(x=>x.email==='duplicate@example.invalid').gymnasts.length,0);assert.equal(owners.find(x=>x.email==='duplicate@example.invalid').preserveExisting,true);
 });
+test('BG expiry accepts exported month dates and rejects impossible dates',()=>{
+ const {expiryDate}=require('../server/member-roster.cjs');
+ for(const value of ['1 Sep 2027','1 September 2027','01/09/2027','2027-09-01'])assert.equal(expiryDate(value),'2027-09-01');
+ assert.equal(expiryDate(''),null);assert.throws(()=>expiryDate('31 Feb 2027'));
+});
+test('optional date label imports independently without losing gymnast identities',async()=>{
+ const wb=new Excel.Workbook(),sheet=wb.addWorksheet('Contacts');sheet.addRow([...headers,'date label']);
+ sheet.addRow(['g1','owner@example.invalid','Parent','Child','One','Gymini','2018-01-01','BG1','Active','1 Sep 2027']);
+ sheet.addRow(['g2','owner@example.invalid','Parent','Child','Two','Recreational','2015-01-01','BG2','Active','31 Feb 2027']);
+ const report={},roster=prepareRoster(await readWorkbook(Buffer.from(await wb.xlsx.writeBuffer())),mapping,report);
+ assert.equal(roster[0].gymnasts.length,2);assert.equal(roster[0].gymnasts[0].bgExpiryDate,'2027-09-01');assert.equal(Object.hasOwn(roster[0].gymnasts[1],'bgExpiryDate'),false);assert.equal(report.insuranceWarnings.length,1);
+ const absent=prepareRoster(await fixture([['g1','owner@example.invalid','Parent','Child','One','Gymini','2018-01-01','BG1','Active']]),mapping);assert.equal(Object.hasOwn(absent[0].gymnasts[0],'bgExpiryDate'),false);
+});
+test('BG expiry applies to member groups with only specified Gymtots exemptions',()=>{
+ const {requiresBgExpiry}=require('../public/manage/membership.js');
+ for(const group of ['under_2_years','two_years','under_4_years'])assert.equal(requiresBgExpiry({active:true,groups:[group]}),false);
+ for(const group of ['three_to_four_years','gymini','recreational','advanced','womens_squad','mens_development'])assert.equal(requiresBgExpiry({active:true,groups:[group]}),true);
+ assert.equal(requiresBgExpiry({active:false,groups:['gymini']}),false);assert.equal(requiresBgExpiry({active:true,groups:['under_2_years','gymini']}),true);
+});

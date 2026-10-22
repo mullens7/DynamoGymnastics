@@ -8,7 +8,7 @@ module.exports=async function(req,res){
  try{
   const config=database(process.env),url=new URL(config.url);
   url.pathname='/rest/v1/dynamo_accounts';
-  url.searchParams.set('select','id,email,owner_name,roster_member,manual_member,manual_member_since,temporary_member_start,temporary_member_end,roster_staff,wallet_pence,staff_profile:dynamo_staff_profiles!dynamo_staff_profiles_account_id_fkey(first_name,last_name,manual_staff,enabled,role,roles),dynamo_gymnasts(id,first_name,last_name,date_of_birth,bg_number,groups,active)');
+  url.searchParams.set('select','id,email,owner_name,roster_member,manual_member,manual_member_since,temporary_member_start,temporary_member_end,roster_staff,wallet_pence,staff_profile:dynamo_staff_profiles!dynamo_staff_profiles_account_id_fkey(first_name,last_name,manual_staff,enabled,role,roles),dynamo_gymnasts(id,first_name,last_name,date_of_birth,bg_number,bg_expiry_date,groups,active)');
   url.searchParams.set('order','email.asc');
   // Explicit pagination: never silently truncate Contacts at PostgREST's row limit.
   const accounts=[];let offset=0;

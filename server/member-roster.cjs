@@ -30,6 +30,7 @@ function columnMap(columns,mapping){
  const required=['email','firstName','lastName','timeClass'];const mapped={};
  for(const [field,label] of Object.entries(mapping)){if(field==='activeValues'||field==='membershipPolicy'||field==='identityPolicy')continue;const index=byName.get(normal(label));if(!index)throw Object.assign(new RosterError('ROSTER_MAPPING_REQUIRED'),{missingColumns:true});mapped[field]=index;}
  if((!mapped.id&&(mapping.identityPolicy!=='email_name_dob'||!mapped.dateOfBirth))||required.some(k=>!mapped[k])||(!mapped.status&&mapping.membershipPolicy!=='assigned_classes'))throw new RosterError('ROSTER_MAPPING_REQUIRED');
+ mapped.bgExpiryDate ||= byName.get('datelabel');
  if(mapped.status&&(!Array.isArray(mapping.activeValues)||!mapping.activeValues.length))throw new RosterError('ROSTER_MAPPING_REQUIRED');return mapped;
 }
 function canonicalDate(value){
@@ -37,6 +38,12 @@ function canonicalDate(value){
  let match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(value),iso=value;
  if(!match){match=/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(value);if(!match)throw new RosterError('IDENTITY_REVIEW_REQUIRED');iso=match[3]+'-'+match[2].padStart(2,'0')+'-'+match[1].padStart(2,'0');}
  const date=new Date(iso+'T00:00:00Z');if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==iso)throw new RosterError('IDENTITY_REVIEW_REQUIRED');return iso;
+}
+function expiryDate(value){
+ if(!value)return null;
+ const m=/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/.exec(value);
+ if(m){const months=['january','february','march','april','may','june','july','august','september','october','november','december'];const month=months.findIndex(x=>x===m[2].toLowerCase()||x.slice(0,3)===m[2].toLowerCase());if(month<0)throw new Error('Invalid expiry');value=m[3]+'-'+String(month+1).padStart(2,'0')+'-'+m[1].padStart(2,'0');}
+ return canonicalDate(value);
 }
 function profileIdentity(email,firstName,lastName,dateOfBirth){
  if(!dateOfBirth)throw new RosterError('IDENTITY_REVIEW_REQUIRED');
@@ -63,7 +70,8 @@ function prepareRoster(workbook,mapping,report={},{source='dynamo',skipInvalid=f
    try{dateOfBirth=canonicalDate(value('dateOfBirth'));id=columns.id?value('id'):profileIdentity(email,firstName,lastName,dateOfBirth);}
    catch(error){if(error.code==='IDENTITY_REVIEW_REQUIRED')error.validation={row:row.number,column:'Date of birth',reason:'This gymnast has a missing or invalid date of birth in the export.'};throw error;}
    if(!id||seen.has(id)){if(skipInvalid&&seen.has(id))for(const savedOwner of owners.values()){if(savedOwner.gymnasts.some(g=>g.sourceId===id)){savedOwner.gymnasts=savedOwner.gymnasts.filter(g=>g.sourceId!==id);savedOwner.preserveExisting=true;savedOwner.member=savedOwner.gymnasts.some(g=>g.active);}}const error=new RosterError('IDENTITY_REVIEW_REQUIRED');error.validation={row:row.number,column:'Gymnast identity',reason:!id?'The contact identifier is missing.':'This gymnast appears more than once with the same identifier in the export.'};throw error;}seen.add(id);
-   owner.gymnasts.push({sourceId:id,firstName,lastName,dateOfBirth,bgNumber:value('bgNumber'),timeClass,groups:rule.groups,active});owner.member ||= active;
+   const insurance={};if(columns.bgExpiryDate){try{insurance.bgExpiryDate=expiryDate(value('bgExpiryDate'));}catch{(report.insuranceWarnings ||= []).push({row:row.number,reason:'Invalid BG expiry date; previous date retained.'});}}
+   owner.gymnasts.push({...insurance,sourceId:id,firstName,lastName,dateOfBirth,bgNumber:value('bgNumber'),timeClass,groups:rule.groups,active});owner.member ||= active;
   }
   }catch(error){
    if(!skipInvalid||!['IDENTITY_REVIEW_REQUIRED','INVALID_ROSTER'].includes(error.code))throw error;
@@ -87,4 +95,4 @@ function reconcile(existing,roster,makeId){
  }
  return [...accounts.values()];
 }
-module.exports={RosterError,readWorkbook,prepareRoster,reconcile,canonicalDate,profileIdentity};
+module.exports={RosterError,readWorkbook,prepareRoster,reconcile,canonicalDate,profileIdentity,expiryDate};

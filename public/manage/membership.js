@@ -70,12 +70,13 @@
     return event.audience==='groups'&&g.groups.some(id=>(event.allowedGroups||[]).includes(id));
   }
   function isMember(gymnast){return gymnast?.active===true&&Array.isArray(gymnast.groups)&&gymnast.groups.length>0;}
+  function requiresBgExpiry(g){return isMember(g)&&g.groups.some(id=>!['under_2_years','two_years','under_4_years'].includes(id));}
   function quote(event,account,gymnastId){
     if(!eligible(event,account,gymnastId))return {eligible:false,priceCents:null};
     // Discounts belong to the selected active gymnast, not their siblings.
     return {eligible:true,priceCents:isMember(account?.gymnasts?.find(g=>g.id===gymnastId))?event.memberPriceCents:event.nonMemberPriceCents};
   }
-  const api=Object.freeze({groups,classify,classifyGymtots,accounts,cents,eligible,quote,isMember});
+  const api=Object.freeze({groups,classify,classifyGymtots,accounts,cents,eligible,quote,isMember,requiresBgExpiry});
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else root.DynamoMembership=api;
 })(globalThis);
