@@ -69,12 +69,13 @@
     if(event.audience==='members')return g.groups.length>0;
     return event.audience==='groups'&&g.groups.some(id=>(event.allowedGroups||[]).includes(id));
   }
+  function isMember(gymnast){return gymnast?.active===true&&Array.isArray(gymnast.groups)&&gymnast.groups.length>0;}
   function quote(event,account,gymnastId){
     if(!eligible(event,account,gymnastId))return {eligible:false,priceCents:null};
-    // Member pricing follows the verified owner's active-member household.
-    return {eligible:true,priceCents:account?.member===true?event.memberPriceCents:event.nonMemberPriceCents};
+    // Discounts belong to the selected active gymnast, not their siblings.
+    return {eligible:true,priceCents:isMember(account?.gymnasts?.find(g=>g.id===gymnastId))?event.memberPriceCents:event.nonMemberPriceCents};
   }
-  const api=Object.freeze({groups,classify,classifyGymtots,accounts,cents,eligible,quote});
+  const api=Object.freeze({groups,classify,classifyGymtots,accounts,cents,eligible,quote,isMember});
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else root.DynamoMembership=api;
 })(globalThis);

@@ -64,3 +64,9 @@ test('new Gymtots groups are selectable and support eligibility without altering
  for(const id of ids){const a={member:true,gymnasts:[{id:'child',active:true,groups:[id]}]};assert.equal(m.eligible({audience:'groups',allowedGroups:[id]},a,'child'),true);assert.equal(m.eligible({audience:'groups',allowedGroups:['gymini']},a,'child'),false);}
  assert.deepEqual(m.classifyGymtots('Under 2 Years, Junior Coach'),{groups:['under_2_years'],staff:true,review:[]});assert.deepEqual(m.classifyGymtots('Senior Coach'),{groups:[],staff:true,review:[]});assert.equal(m.classifyGymtots('Gymtots').groups.length,0);assert.equal(m.classifyGymtots('Waiting list').review.length,1);
 });
+test('discounts belong only to each active member gymnast in a mixed family',()=>{
+ const a={member:true,gymnasts:[{id:'member',active:true,groups:['gymini']},{id:'sibling',active:false,groups:[]},{id:'former',active:false,groups:['recreational']},{id:'unclassified',active:true,groups:[]}]};const e={audience:'everyone',memberPriceCents:750,nonMemberPriceCents:1000};
+ assert.equal(m.quote(e,a,'member').priceCents,750);
+ for(const id of ['sibling','former','unclassified','unknown'])assert.equal(m.quote(e,a,id).priceCents,1000);
+ assert.equal(m.quote({...e,audience:'members'},a,'sibling').eligible,false);
+});
