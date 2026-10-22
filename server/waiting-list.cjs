@@ -12,7 +12,7 @@ function makeWaitingListHandler(env=process.env,services={schedule}){return asyn
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  if(!['GET','POST'].includes(req.method))return res.status(405).json({message:'Method not allowed.'});
  if(req.method==='POST'&&!sameOrigin(req))return res.status(403).json({message:'Please use the Dynamo website form.'});
- try{const records=await services.schedule(env);if(req.method==='GET')return res.status(200).json({records:records.filter(c=>['Gyminis','Recreational'].includes(c.category)),preview:env.VERCEL_ENV!=='production'});
+ try{const records=await services.schedule(env);if(req.method==='GET')return res.status(200).json({records:records.filter(c=>(c.location||'Hamble')==='Hamble'&&['Gyminis','Recreational'].includes(c.category)),preview:env.VERCEL_ENV!=='production'});
  if(req.body?.website)return res.status(200).json({ok:true,confirmation:''});
  let data;try{data=rules.validate(req.body||{},records);}catch(e){return res.status(400).json({message:e.message});}
  // Preview is explicitly side-effect free, even if production secrets are inherited.

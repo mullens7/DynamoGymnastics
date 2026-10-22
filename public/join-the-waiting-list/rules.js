@@ -1,7 +1,7 @@
 (function(root){
  const classes=typeof module!=='undefined'?require('../classes/rules.js'):root.DynamoClasses;
  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
- function eligible(records,dob,date=today()){return records.filter(c=>c.status==='Published'&&['Gyminis','Recreational'].includes(c.category)&&classes.eligible(c,dob,date));}
+ function eligible(records,dob,date=today()){return records.filter(c=>c.status==='Published'&&(c.location||'Hamble')==='Hamble'&&['Gyminis','Recreational'].includes(c.category)&&classes.eligible(c,dob,date));}
  const key=c=>[c.location||'Hamble',c.day,c.start,c.end].join('|');
  function crossover(records,children,date=today()){
   const lists=children.map(c=>eligible(records,c.dob,date));if(lists.length<2)return [];
