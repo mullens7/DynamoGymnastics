@@ -82,3 +82,19 @@ test('read-only Gymtots classification returns group counts without changing acc
  const handler=makeHandler({SYNC_TEST_KEY:key,GYMTOTS_THRIVE_EMAIL:'fixture@example.invalid',GYMTOTS_THRIVE_PASSWORD:'fixture',THRIVE_EXPORT_MAPPING:JSON.stringify(map)},async()=>({format:'xlsx',workbook:bytes}));const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};
  await handler({method:'POST',headers:{authorization:'Bearer '+key},body:{mode:'inspect',source:'gymtots',validateRoster:true}},res);assert.equal(res.code,200);assert.equal(res.body.classification.gymnasts,1);assert.deepEqual(res.body.classification.groups,{under_2_years:1});assert.equal(JSON.stringify(res.body).includes('private@example.invalid'),false);assert.equal(JSON.stringify(res.body).includes('Private First'),false);
 });
+test('partial import skips bad identities and duplicate profiles while retaining valid siblings',async()=>{
+ const h=['last name','first name','time and class','account owner','owner email','date of birth'];
+ const map={lastName:h[0],firstName:h[1],timeClass:h[2],ownerName:h[3],email:h[4],dateOfBirth:h[5],identityPolicy:'email_name_dob',membershipPolicy:'assigned_classes'};
+ const excel=new Excel.Workbook(),sheet=excel.addWorksheet('Contacts');sheet.addRow(h);sheet.addRows([
+ ['Good','Child','Gymini','Parent','parent@example.invalid','02/01/2020'],
+ ['Missing DOB','Child','Gymini','Parent','parent@example.invalid',''],
+ ['Bad DOB','Child','Gymini','Parent','parent@example.invalid','31/02/2020'],
+ ['Taster','Child','','Parent','taster@example.invalid',''],
+ ['Duplicate','Child','Gymini','Parent','duplicate@example.invalid','02/01/2020'],
+ ['Duplicate','Child','Gymini','Parent','duplicate@example.invalid','02/01/2020']]);
+ const workbook=await readWorkbook(Buffer.from(await excel.xlsx.writeBuffer())),report={};
+ const owners=prepareRoster(workbook,map,report,{skipInvalid:true});
+ assert.equal(report.skipped.length,3);assert.equal(owners.find(x=>x.email==='parent@example.invalid').gymnasts.length,1);assert.equal(owners.find(x=>x.email==='parent@example.invalid').preserveExisting,true);
+ assert.equal(owners.find(x=>x.email==='taster@example.invalid').member,false);
+ assert.equal(owners.find(x=>x.email==='duplicate@example.invalid').gymnasts.length,0);assert.equal(owners.find(x=>x.email==='duplicate@example.invalid').preserveExisting,true);
+});

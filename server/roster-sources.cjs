@@ -21,14 +21,23 @@ function sourceMapping(source,columns,mapping){
  }
  return resolved;
 }
-function mergeRosters(sources){
+function mergeRosters(sources,{skipInvalid=false,report={}}={}){
+ const conflicts=new Set(),known=new Map();report.skipped=[];
+ if(skipInvalid)for(const source of sources)for(const owner of source.owners)for(const child of owner.gymnasts){
+  const key=child.sourceId,previous=known.get(key),canonical=v=>String(v||'').normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
+  if(previous&&(previous.email!==owner.email||canonical(previous.child.firstName)!==canonical(child.firstName)||canonical(previous.child.lastName)!==canonical(child.lastName)||previous.child.dateOfBirth!==child.dateOfBirth||previous.child.bgNumber&&child.bgNumber&&previous.child.bgNumber!==child.bgNumber))conflicts.add(key);
+  else if(!previous)known.set(key,{email:owner.email,child});
+ }
+
  const owners=new Map(),ids=new Map();
  for(const source of sources)for(const incoming of source.owners){
   let owner=owners.get(incoming.email);
   if(!owner){owner={email:incoming.email,ownerName:incoming.ownerName,member:false,staff:false,gymnasts:[]};owners.set(incoming.email,owner);}
+  if(incoming.preserveExisting)owner.preserveExisting=true;
   if(!owner.ownerName)owner.ownerName=incoming.ownerName;
   owner.member ||= incoming.member;owner.staff ||= incoming.staff;
   for(const child of incoming.gymnasts){
+   if(conflicts.has(child.sourceId)){owner.preserveExisting=true;if(!report.skipped.some(item=>item.sourceId===child.sourceId))report.skipped.push({sourceId:child.sourceId,reason:'Conflicting identity details across the exports. Existing data retained.'});continue;}
    if(ids.has(child.sourceId)&&ids.get(child.sourceId)!==incoming.email)throw new RosterError('IDENTITY_REVIEW_REQUIRED');
    ids.set(child.sourceId,incoming.email);
    const previous=owner.gymnasts.find(g=>g.sourceId===child.sourceId);
@@ -41,6 +50,7 @@ function mergeRosters(sources){
    previous.active ||= child.active;previous.bgNumber ||= child.bgNumber;
   }
  }
+ if(skipInvalid)for(const owner of owners.values())owner.member=owner.gymnasts.some(child=>child.active);
  return [...owners.values()];
 }
 function sourceSummary(source){

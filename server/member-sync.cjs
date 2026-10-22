@@ -36,7 +36,7 @@ async function syncMembers(env,{onProgress=()=>{},dryRun=false}={},services={exp
     if(download.format!=='xlsx'){const error=new RosterError('INVALID_ROSTER');error.validation={reason:'The export is not an XLSX workbook. Export Contacts as Excel XLSX.'};throw error;}
     onProgress({percent:(sourceProgress=Math.max(sourceProgress,Math.floor(5+(index+.95)*75/sources.length))),label:'Checking '+source.name+' memberships'});
     const workbook=await services.readWorkbook(download.workbook,{allowClassHeading:source.key==='gymtots'});
-    return services.prepareRoster(workbook,sourceMapping(source,workbook.columns,mapping),report,{source:source.key});
+    return services.prepareRoster(workbook,sourceMapping(source,workbook.columns,mapping),report,{source:source.key,skipInvalid:true});
    };
    try{source.owners=await validate();}
    catch(error){
@@ -50,7 +50,7 @@ async function syncMembers(env,{onProgress=()=>{},dryRun=false}={},services={exp
    reports.push({...report,key:source.key,name:source.name});
   }catch(error){error.organisation=source.name;error.stage ||= 'validation';error.diagnostic ||= download?.diagnostic;throw error;}
  }
- const owners=mergeRosters(sources);
+ const mergeReport={},owners=mergeRosters(sources,{skipInvalid:true,report:mergeReport});
  onProgress({percent:85,label:'Combining accounts and checking both exports'});
  onProgress({percent:90,label:'Saving memberships and retaining account history'});
  const response=await services.fetch(config.url+'/rest/v1/rpc/'+(dryRun?'preview_dynamo_rosters':'apply_dynamo_rosters'),{method:'POST',headers:{...config.headers,'Content-Type':'application/json'},redirect:'error',body:JSON.stringify({p_hash:snapshotHash(owners),p_started_at:startedAt,p_rows:owners,p_sources:sources.map(source=>({...sourceSummary(source),hash:snapshotHash(source.owners)}))}),signal:AbortSignal.timeout(20000)});
@@ -58,6 +58,6 @@ async function syncMembers(env,{onProgress=()=>{},dryRun=false}={},services={exp
   throw new RosterError(['SNAPSHOT_REVIEW_REQUIRED','STALE_SNAPSHOT','IDENTITY_REVIEW_REQUIRED','ROSTER_SOURCE_MISSING'].includes(code)?code:'SYNC_STORAGE_FAILED');}
  const result=await response.json();
  if(dryRun)return result;
- return {ok:true,membershipUpdated:true,accounts:result.accounts,members:result.members,staff:result.staff,unchanged:result.unchanged===true,organisations:sources.map(s=>({name:s.name,...sourceSummary(s)})),emailsSent:0,unmappedRows:reports.reduce((n,r)=>n+(r.unmappedRows||0),0),unmappedClasses:reports.flatMap(r=>(r.unmappedClasses||[]).map(c=>({...c,label:r.name+': '+c.label}))),message:'Members synced. Accounts and history retained. No emails sent.'};
+ return {ok:true,membershipUpdated:true,accounts:result.accounts,members:result.members,staff:result.staff,unchanged:result.unchanged===true,organisations:sources.map(s=>({name:s.name,...sourceSummary(s)})),emailsSent:0,skippedRecords:[...reports.flatMap(r=>(r.skipped||[]).map(item=>({...item,organisation:r.name}))),...(mergeReport.skipped||[]),...(result.skippedRecords||[])],unmappedRows:reports.reduce((n,r)=>n+(r.unmappedRows||0),0),unmappedClasses:reports.flatMap(r=>(r.unmappedClasses||[]).map(c=>({...c,label:r.name+': '+c.label}))),message:'Members synced. Accounts and history retained. No emails sent.'};
 }
 module.exports={syncMembers,settings,snapshotHash};

@@ -55,3 +55,13 @@ test('combined imports apply Gymtots age classification only to that source and 
  let body;const services={exportContacts:async e=>({format:'xlsx',workbook:e.THRIVE_EMAIL}),readWorkbook:async key=>workbook(key===env.THRIVE_EMAIL?'Gymini':'Monday - Hamble Under 2 Years - 9.30-10.10am'),prepareRoster,fetch:async(url,options)=>{body=JSON.parse(options.body);return {ok:true,json:async()=>({accounts:1,members:1,staff:0})};}};
  await syncMembers(both,{},services);assert.equal(body.p_rows[0].gymnasts.length,1);assert.deepEqual(body.p_rows[0].gymnasts[0].groups,['gymini','under_2_years']);assert.equal(body.p_sources.find(s=>s.key==='gymtots').members,1);
 });
+test('read-only diagnosis uses rollback preview, never the live apply RPC',async()=>{
+ let called=0;const services={exportContacts:async e=>({format:'xlsx',workbook:e.THRIVE_EMAIL}),readWorkbook:async()=>workbook('Gymini'),prepareRoster,fetch:async(url)=>{called++;assert.match(url,/preview_dynamo_rosters$/);return {ok:true,json:async()=>({ok:false,error:'IDENTITY_REVIEW_REQUIRED',review:[{reason:'changed_details'}]})};}};
+ const result=await syncMembers(both,{dryRun:true},services);assert.equal(result.error,'IDENTITY_REVIEW_REQUIRED');assert.equal(result.membershipUpdated,undefined);assert.equal(called,1);
+});
+test('conflicting cross-source profiles are skipped without granting benefits or blocking valid children',()=>{
+ const a={email:'a@example.invalid',ownerName:'A',member:true,staff:false,gymnasts:[{sourceId:'collision',firstName:'Child',lastName:'One',dateOfBirth:'2020-01-01',bgNumber:'',groups:['gymini'],active:true}]};
+ const b={...a,email:'b@example.invalid',gymnasts:[{...a.gymnasts[0],firstName:'Other'}]};
+ const report={},merged=mergeRosters([{owners:[a]},{owners:[b]}],{skipInvalid:true,report});
+ assert.equal(report.skipped.length,1);assert.equal(merged.length,2);assert.ok(merged.every(o=>!o.member&&o.preserveExisting&&o.gymnasts.length===0));
+});

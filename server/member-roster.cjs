@@ -43,12 +43,14 @@ function profileIdentity(email,firstName,lastName,dateOfBirth){
  const canonical=value=>value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
  return 'derived:'+createHash('sha256').update(JSON.stringify([canonical(email),canonical(firstName),canonical(lastName),dateOfBirth])).digest('hex');
 }
-function prepareRoster(workbook,mapping,report={},{source='dynamo'}={}){
+function prepareRoster(workbook,mapping,report={},{source='dynamo',skipInvalid=false}={}){
  const columns=columnMap(workbook.columns,mapping),owners=new Map(),seen=new Set(),unmapped=new Map();
- report.unmappedRows=0;report.unmappedClasses=[];
+ report.unmappedRows=0;report.unmappedClasses=[];report.skipped=[];
  for(const row of workbook.rows){
   const value=field=>{try{return columns[field]?text(row.getCell(columns[field])):'';}catch(error){error.validation={...error.validation,row:row.number,column:field};throw error;}};
-  const email=value('email').toLowerCase();
+  let email='';
+  try{
+  email=value('email').toLowerCase();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw invalid('The account owner email is missing or invalid.',row.number,'Owner email');
   const timeClass=value('timeClass'),rule=(source==='gymtots'?classifyGymtots:classify)(timeClass);
   // Unknown labels grant no member or staff benefits.
@@ -57,10 +59,19 @@ function prepareRoster(workbook,mapping,report={},{source='dynamo'}={}){
   let owner=owners.get(email);if(!owner){owner={email,ownerName:value('ownerName'),member:false,staff:false,gymnasts:[]};owners.set(email,owner);}
   owner.staff ||= active&&rule.staff;
   if(rule.groups.length){const firstName=value('firstName'),lastName=value('lastName');if(!firstName||!lastName)throw invalid('A gymnast with a recognised class is missing a first or last name.',row.number,'Gymnast name');
-   const dateOfBirth=canonicalDate(value('dateOfBirth'));
-   const id=columns.id?value('id'):profileIdentity(email,firstName,lastName,dateOfBirth);
-   if(!id||seen.has(id))throw new RosterError('IDENTITY_REVIEW_REQUIRED');seen.add(id);
+   let dateOfBirth,id;
+   try{dateOfBirth=canonicalDate(value('dateOfBirth'));id=columns.id?value('id'):profileIdentity(email,firstName,lastName,dateOfBirth);}
+   catch(error){if(error.code==='IDENTITY_REVIEW_REQUIRED')error.validation={row:row.number,column:'Date of birth',reason:'This gymnast has a missing or invalid date of birth in the export.'};throw error;}
+   if(!id||seen.has(id)){if(skipInvalid&&seen.has(id))for(const savedOwner of owners.values()){if(savedOwner.gymnasts.some(g=>g.sourceId===id)){savedOwner.gymnasts=savedOwner.gymnasts.filter(g=>g.sourceId!==id);savedOwner.preserveExisting=true;savedOwner.member=savedOwner.gymnasts.some(g=>g.active);}}const error=new RosterError('IDENTITY_REVIEW_REQUIRED');error.validation={row:row.number,column:'Gymnast identity',reason:!id?'The contact identifier is missing.':'This gymnast appears more than once with the same identifier in the export.'};throw error;}seen.add(id);
    owner.gymnasts.push({sourceId:id,firstName,lastName,dateOfBirth,bgNumber:value('bgNumber'),timeClass,groups:rule.groups,active});owner.member ||= active;
+  }
+  }catch(error){
+   if(!skipInvalid||!['IDENTITY_REVIEW_REQUIRED','INVALID_ROSTER'].includes(error.code))throw error;
+   report.skipped.push({row:row.number,source,reason:error.validation?.reason||'The exported identity could not be matched confidently.'});
+   if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    let owner=owners.get(email);if(!owner){owner={email,ownerName:'',member:false,staff:false,gymnasts:[]};owners.set(email,owner);}
+    owner.preserveExisting=true;
+   }
   }
  }
  report.unmappedClasses=[...unmapped].slice(0,20).map(([label,rows])=>({label,rows}));
