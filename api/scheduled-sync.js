@@ -15,6 +15,7 @@ module.exports=async(req,res)=>{
  // Private recovery uses the same lock and importer, without unrelated notification work.
  if(req.body?.recoverMembers===true){try{return res.status(200).json(await performSync(process.env,{source:'manual'}));}catch(error){return res.status(502).json({ok:false,error:error.code||'AUTOMATION_FAILED'});}}
  try{await require('../server/stripe-payments.cjs').reconcile(process.env);}catch{console.warn('Stripe reconciliation unavailable');}
+ try{await require('../server/waiting-list-submit.cjs').recover(process.env);}catch{console.warn('Waiting-list recovery unavailable');}
  if(req.body?.paymentReconcile===true)return res.status(200).json({ok:true});
  const slot=scheduleSlot();if(!slot)return res.status(200).json({ok:true,skipped:true});
  try{const result=await performSync(process.env,{source:'scheduled',slot});return res.status(200).json({ok:true,duplicate:result.duplicate===true});}
