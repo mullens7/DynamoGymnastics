@@ -13,3 +13,16 @@ test('preview handler validates server-side without sheet or email writes and re
  const a=res();await handler({method:'POST',headers:{origin:'https://preview.example',host:'preview.example'},body:{parent:'Test Parent',email:'test@example.invalid',children}},a);assert.equal(a.code,200);assert.equal(a.body.preview,true);assert.match(a.body.confirmation,/Test Child/);
  const b=res();await handler({method:'POST',headers:{origin:'https://wrong.example',host:'preview.example'},body:{}},b);assert.equal(b.code,403);
 });
+test('compact preferences distinguish all sessions, whole days and individual times in weekday order',()=>{
+ const sessions=[{id:'t4',day:'Tuesday',start:'16:00',end:'17:00'},{id:'t5',day:'Tuesday',start:'17:00',end:'18:00'},{id:'w5',day:'Wednesday',start:'17:00',end:'18:00'},{id:'w6',day:'Wednesday',start:'18:00',end:'19:00'},{id:'s930',day:'Saturday',start:'09:30',end:'10:30'}];
+ assert.equal(R.preference([...sessions].reverse(),sessions),'Any');
+ assert.equal(R.preference(sessions.slice(0,4),sessions),'Tues, Weds');
+ assert.equal(R.preference([sessions[2],sessions[0]],sessions),'Tues 4pm, Weds 5pm');
+ assert.equal(R.preference([sessions[0],sessions[1],sessions[2]],sessions),'Tues, Weds 5pm');
+ assert.equal(R.preference([sessions[4]],sessions),'Sat');
+ assert.equal(R.preference([sessions[4]],[...sessions,{id:'s1030',day:'Saturday',start:'10:30',end:'11:30'}]),'Sat 9:30am');
+});
+test('compact preference is calculated from all eligible Hamble classes, excluding West End',()=>{
+ const value=R.validate({parent:'Test Parent',email:'test@example.invalid',children:[children[0]]},records,date);
+ assert.equal(value.children[0].preference,'Any');
+});

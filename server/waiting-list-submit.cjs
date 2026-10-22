@@ -10,7 +10,9 @@ async function submit(env,data,id,ip,services={rpc,store,append:google.append,se
  // Fail before saving if configuration is incomplete, without returning secrets.
  google.client(env);settings(env);if(!env.SYNC_TEST_KEY||env.SYNC_TEST_KEY.length<32)throw Error('WAITING_NOT_CONFIGURED');
  const canonical={...data,children:data.children.map(c=>({...c,classes:[...c.classes].sort((a,b)=>a.id.localeCompare(b.id))}))};
- const fingerprint=createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+ // Display shorthand must not change submission identity or duplicate detection.
+ const fingerprintData={...canonical,children:canonical.children.map(({preference,...child})=>child)};
+ const fingerprint=createHash('sha256').update(JSON.stringify(fingerprintData)).digest('hex');
  const limit=v=>createHmac('sha256',env.SYNC_TEST_KEY).update('waiting:'+v).digest('hex');
  const reserved=await services.rpc(env,'reserve_dynamo_waiting_list',{p_id:id,p_hash:fingerprint,p_details:canonical,p_limit:limit('ip:'+ip),p_email_limit:limit('email:'+data.email)});
  const record=reserved.record,path='dynamo_waiting_list_submissions?id=eq.'+record.id;
