@@ -28,12 +28,14 @@ async function storage(env,path,options={}){const config=database(env);const res
 async function signedUpload(env,path){const result=await storage(env,'object/upload/sign/'+BUCKET+'/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});return database(env).url+'/storage/v1'+result.url;}
 async function signedRead(env,path){const result=await storage(env,'object/sign/'+BUCKET+'/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expiresIn:900})});return database(env).url+'/storage/v1'+result.signedURL;}
 async function verifyFile(env,record){
- const info=await storage(env,'object/info/'+BUCKET+'/'+record.object_path),metadata=info.metadata||{};
- if(Number(metadata.size)!==record.file_size||metadata.mimetype!==record.mime_type)throw Error('The uploaded file did not match. Please upload it again.');
+ const info=await storage(env,'object/info/'+BUCKET+'/'+record.object_path);
+ // Storage info returns size/content_type at the top level; older responses used metadata.
+ const size=info.size??info.metadata?.size,type=info.content_type??info.contentType??info.metadata?.mimetype;
+ if(Number(size)!==record.file_size||type!==record.mime_type)throw Object.assign(Error('The uploaded file did not match its expected size or type. Please select the original PDF or MP4 and try again.'),{code:'UPLOAD_METADATA_MISMATCH'});
  const config=database(env),response=await fetch(config.url+'/storage/v1/object/'+BUCKET+'/'+record.object_path,{headers:{...config.headers,Range:'bytes=0-31'},redirect:'error',signal:AbortSignal.timeout(15000)});
  if(!response.ok)throw Error('The upload is not ready. Please try again.');
  const reader=response.body.getReader();let bytes=Buffer.alloc(0);try{while(bytes.length<12){const chunk=await reader.read();if(chunk.done)break;bytes=Buffer.concat([bytes,Buffer.from(chunk.value)]);}}finally{await reader.cancel();}
- if(record.mime_type==='application/pdf'?bytes.subarray(0,5).toString()!=='%PDF-':bytes.subarray(4,8).toString()!=='ftyp')throw Error('The file is not a valid PDF or MP4.');
+ if(record.mime_type==='application/pdf'?bytes.subarray(0,5).toString()!=='%PDF-':bytes.subarray(4,8).toString()!=='ftyp')throw Object.assign(Error('The file is not a valid PDF or MP4.'),{code:'UPLOAD_CONTENT_INVALID'});
 }
 function makeStaffHandler(env=process.env,services={currentUser,store,all,signedUpload,signedRead,verifyFile},management=false){return async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
@@ -70,6 +72,6 @@ function makeStaffHandler(env=process.env,services={currentUser,store,all,signed
    return res.status(200).json({url:await services.signedRead(env,rows[0].object_path),mimeType:rows[0].mime_type});
   }
   return res.status(400).json({message:'Choose a staff portal action.'});
- }catch{return res.status(503).json({message:'The staff portal could not complete that action. Please try again.'});}
+ }catch(error){if(['UPLOAD_METADATA_MISMATCH','UPLOAD_CONTENT_INVALID'].includes(error.code))return res.status(400).json({message:error.message});console.warn('Staff resource action failed',{action:req.body?.action||req.method,code:error.code||'RESOURCE_STORAGE_FAILED'});return res.status(503).json({message:'The staff portal could not complete that action. Please try again.'});}
 };}
 module.exports={makeStaffHandler,validate,verifyFile,MAX_PDF,MAX_VIDEO};

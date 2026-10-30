@@ -17,3 +17,22 @@ test('deletion archives resources and unavailable files are never signed',async(
 test('stored file metadata and PDF/MP4 headers are checked before publication',async()=>{const {verifyFile}=require('../server/staff-resources.cjs'),original=global.fetch,env={SUPABASE_URL:'https://fixture.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_fixture'};try{for(const [mime,bytes] of [['application/pdf',Buffer.from('%PDF-1.4\nfixture')],['video/mp4',Buffer.from([0,0,0,20,102,116,121,112,109,112,52,50])]]){global.fetch=async(url,options)=>String(url).includes('/info/')?new Response(JSON.stringify({metadata:{size:bytes.length,mimetype:mime}}),{headers:{'Content-Type':'application/json'}}):new Response(bytes,{status:206});await verifyFile(env,{object_path:'fixture',mime_type:mime,file_size:bytes.length});}global.fetch=async()=>new Response(JSON.stringify({metadata:{size:99,mimetype:'text/html'}}));await assert.rejects(()=>verifyFile(env,{object_path:'fixture',mime_type:'application/pdf',file_size:100}),/did not match/);}finally{global.fetch=original;}});
 
 test('staff reads and opens files but cannot mutate; admins must use management endpoint',async()=>{for(const identity of [{id,roster_staff:true},{id,websiteAdmin:true}])for(const [method,body] of [['POST',{action:'add',...plan}],['POST',{action:'complete',id}],['DELETE',null]]){const r=res();await makeStaffHandler({}, {currentUser:async()=>identity})(req(method,body,{id}),r);assert.equal(r.code,403);}const r=res();await makeStaffHandler({}, {currentUser:async()=>({id,roster_staff:true})},true)(req('POST',{action:'add',...plan}),r);assert.equal(r.code,403);});
+test('Staff Planner can add and complete a plan without Super Admin access',async()=>{
+ const planner=require('../server/roles.cjs').staffAccess({id,email:'planner@example.invalid',roster_staff:true,staff_profile:{enabled:true,roles:['staff_planner']}});
+ assert.equal(planner.websiteAdmin,false);
+ let record;const services={currentUser:async()=>planner,signedUpload:async()=> 'https://upload.invalid/token',verifyFile:async()=>{},store:async(e,path,opts)=>{if(opts?.method==='POST'){record=JSON.parse(opts.body);return [record];}if(opts?.method==='PATCH')return [{...record,state:'ready'}];if(path.includes('select=*'))return [record];return [];}};
+ const created=res();await makeStaffHandler({},services,true)(req('POST',{action:'add',...plan}),created);assert.equal(created.code,201);
+ const completed=res();await makeStaffHandler({},services,true)(req('POST',{action:'complete',id:created.body.id}),completed);assert.equal(completed.code,200);
+});
+test('verification accepts current Storage info metadata and still validates actual PDF bytes',async()=>{
+ const {verifyFile}=require('../server/staff-resources.cjs'),original=global.fetch,env={SUPABASE_URL:'https://fixture.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_fixture'},bytes=Buffer.from('%PDF-1.4\nfixture');
+ try{for(const info of [{size:bytes.length,content_type:'application/pdf'},{size:bytes.length,contentType:'application/pdf'}]){global.fetch=async(url)=>String(url).includes('/info/')?new Response(JSON.stringify(info)):new Response(bytes,{status:206});await verifyFile(env,{object_path:'fixture.pdf',file_size:bytes.length,mime_type:'application/pdf'});}
+ global.fetch=async(url)=>String(url).includes('/info/')?new Response(JSON.stringify({size:bytes.length,content_type:'application/pdf'})):new Response(Buffer.from('not a PDF file'),{status:206});await assert.rejects(()=>verifyFile(env,{object_path:'fixture.pdf',file_size:bytes.length,mime_type:'application/pdf'}),{code:'UPLOAD_CONTENT_INVALID'});
+ }finally{global.fetch=original;}
+});
+test('recovery verifies pending uploads, publishes once and skips repeated submissions',async()=>{
+ const {recoverStaffResources}=require('../server/staff-resource-recovery.cjs');let verified=0,patched=0;
+ const row={id,kind:'overview',state:'uploading',object_path:id+'.pdf',title:'Six weeks',file_name:'plans.pdf',file_size:100,created_by:id};
+ const result=await recoverStaffResources({}, {all:async()=>[row,{...row,id:'22222222-2222-4222-8222-222222222222'}],verifyFile:async()=>{verified++;},store:async()=>{patched++;return [{}];}});
+ assert.deepEqual(result,{ok:true,recovered:1,duplicatesSkipped:1,failed:0});assert.equal(verified,1);assert.equal(patched,1);
+});

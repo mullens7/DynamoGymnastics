@@ -5,6 +5,7 @@ module.exports=async(req,res)=>{
  if(req.method!=='POST')return res.status(405).json({ok:false});
  const key=process.env.SYNC_SCHEDULE_SECRET;
  if(typeof key!=='string'||key.length<32||!equal(req.headers.authorization,'Bearer '+key))return res.status(401).json({ok:false});
+ if(req.body?.recoverStaffResources===true){try{return res.status(200).json(await require('../server/staff-resource-recovery.cjs').recoverStaffResources(process.env));}catch{return res.status(502).json({ok:false,error:'STAFF_RESOURCE_RECOVERY_FAILED'});}}
  if(req.body?.inspectWaitingList===true){try{return res.status(200).json(await require('../server/waiting-list-google.cjs').inspect(process.env));}catch(error){return res.status(502).json({ok:false,error:error.message,status:error.status});}}
  // A harmless probe verifies scheduler credentials and deployment without running a sync.
  if(req.body?.probe===true)return res.status(200).json({ok:true,configured:true});
