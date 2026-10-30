@@ -13,6 +13,10 @@ function sourceMapping(source,columns,mapping){
  const normal=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
  const resolved={...mapping};
  // Gymtots uses separate custom fields with different labels for the same data.
+ // Gymtots labels insurance differently from Dynamo's 'date label'.
+ // Only use the explicit BG expiry heading, never DOB or an unrelated date field.
+ const expiry=columns.filter(c=>normal(c.label)==='bgexpirydate');
+ if(expiry.length===1&&(!resolved.bgExpiryDate||!columns.some(c=>normal(c.label)===normal(resolved.bgExpiryDate))))resolved.bgExpiryDate=expiry[0].label;
  const aliases={timeClass:['timeandclass','timeclass','class'],bgNumber:['bgmembershipnumber','bgmembernumber']};
  for(const [field,names] of Object.entries(aliases)){
   if(!resolved[field]||columns.some(c=>normal(c.label)===normal(resolved[field])))continue;

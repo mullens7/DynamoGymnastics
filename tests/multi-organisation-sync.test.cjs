@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {sourceConfigurations,mergeRosters}=require('../server/roster-sources.cjs');
+const {sourceConfigurations,mergeRosters,sourceMapping}=require('../server/roster-sources.cjs');
 const {syncMembers}=require('../server/member-sync.cjs');
 const {prepareRoster,profileIdentity}=require('../server/member-roster.cjs');
 const mapping={email:'Owner email',ownerName:'Account owner',firstName:'First name',lastName:'Last name',timeClass:'Time and Class',dateOfBirth:'Date of birth',identityPolicy:'email_name_dob',membershipPolicy:'assigned_classes'};
@@ -64,4 +64,20 @@ test('conflicting cross-source profiles are skipped without granting benefits or
  const b={...a,email:'b@example.invalid',gymnasts:[{...a.gymnasts[0],firstName:'Other'}]};
  const report={},merged=mergeRosters([{owners:[a]},{owners:[b]}],{skipInvalid:true,report});
  assert.equal(report.skipped.length,1);assert.equal(merged.length,2);assert.ok(merged.every(o=>!o.member&&o.preserveExisting&&o.gymnasts.length===0));
+});
+test('Gymtots BG expiry heading is mapped automatically without changing Dynamo mapping',()=>{
+ const mapping={email:'owner email',firstName:'first name',lastName:'last name',dateOfBirth:'date of birth',bgNumber:'bg member number',timeClass:'class',identityPolicy:'email_name_dob',membershipPolicy:'assigned_classes'};
+ const columns=Object.values(mapping).map((label,i)=>({label,index:i+1})).concat({label:'bg expiry date',index:10});
+ assert.equal(sourceMapping({key:'gymtots'},columns,mapping).bgExpiryDate,'bg expiry date');
+ assert.equal(sourceMapping({key:'dynamo'},columns,mapping).bgExpiryDate,undefined);
+ assert.equal(sourceMapping({key:'gymtots'},columns,{...mapping,bgExpiryDate:'date label'}).bgExpiryDate,'bg expiry date');
+ assert.equal(sourceMapping({key:'gymtots'},[{label:'date of birth',index:1}],mapping).bgExpiryDate,undefined);
+});
+test('Gymtots Excel date cells import BG renewals and restore per-gymnast member benefits',async()=>{
+ const Excel=require('exceljs'),{readWorkbook,prepareRoster}=require('../server/member-roster.cjs'),{isMember}=require('../public/manage/membership.js');
+ const workbook=new Excel.Workbook(),sheet=workbook.addWorksheet('Contacts');sheet.addRow(['last name','first name','owner email','account owner','date of birth','bg member number','class','bg expiry date']);
+ sheet.addRow(['Fixture','Child','parent@example.invalid','Parent','2022-01-01','BG-TEST','Friday - Hamble 3-4 Years - 9.30-10.10am',new Date('2027-01-31T00:00:00Z')]);
+ const parsed=await readWorkbook(Buffer.from(await workbook.xlsx.writeBuffer()),{allowClassHeading:true}),mapping={email:'owner email',ownerName:'account owner',firstName:'first name',lastName:'last name',dateOfBirth:'date of birth',bgNumber:'bg member number',timeClass:'class',identityPolicy:'email_name_dob',membershipPolicy:'assigned_classes'};
+ const child=prepareRoster(parsed,sourceMapping({key:'gymtots'},parsed.columns,mapping),{},{source:'gymtots'})[0].gymnasts[0];
+ assert.equal(child.bgExpiryDate,'2027-01-31');assert.equal(isMember(child,'2026-10-30'),true);assert.equal(isMember({...child,bgExpiryDate:null},'2026-10-30'),false);
 });
