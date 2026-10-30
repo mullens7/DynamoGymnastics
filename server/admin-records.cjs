@@ -48,7 +48,7 @@ function makeRecordsHandler(env=process.env){return async(req,res)=>{
  try{
   const config=database(env),url=new URL(config.url+'/rest/v1/'+kinds[kind]);
   if(req.method==='GET'){
-   url.searchParams.set('order','created_at.desc');
+   url.searchParams.set('order','created_at.desc,id.desc');
    if(['events','parties','results'].includes(kind)){url.searchParams.set('select','id,details');url.searchParams.set('archived','eq.false');if(kind==='events')url.searchParams.set('select','id,details,internal_id');}
    if(kind==='payments')url.searchParams.set('status','in.(successful,declined,refunded)');
    if(kind==='payments')url.searchParams.set('select','id,created_at,amount_pence,status,payment_method,provider_reference,refunded_pence,purchase_id,cardRefunds:dynamo_card_refunds(amount_pence,state),dynamo_accounts(email,owner_name),dynamo_purchases(details)');
